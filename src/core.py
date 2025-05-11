@@ -53,12 +53,12 @@ def parse_gpif(gpif_file: Path) -> None:
     tree = ET.parse(gpif_file)
     root = tree.getroot()
 
-    # Convert the audio to OGG
-    convert_audio_to_ogg(root)
-
     # Create the chart
     chart = Chart(root)
     chart.write_notes_to_file(TMP_OUT_DIR / NOTES_FILENAME)
+
+    # Convert the audio to OGG
+    convert_audio_to_ogg(root)
 
 
 
