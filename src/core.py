@@ -1,11 +1,15 @@
-import sys
 import argparse
 from pathlib import Path
 from zipfile import ZipFile
 import xml.etree.ElementTree as ET
+from pydub import AudioSegment
 
-TMP_DIR = Path("tmp")
-GPIF_PATH = Path("Content/score.gpif")
+from .const import (
+    TMP_GP_DIR, TMP_OUT_DIR,
+    GPIF_PATH,
+    SONG_FILENAME, NOTES_FILENAME
+)
+from .chart import Chart
 
 
 def extract_gp(gp_file: Path) -> None:
@@ -21,64 +25,24 @@ def extract_gp(gp_file: Path) -> None:
 
     # Extract the .gp file
     with ZipFile(gp_file, 'r') as zip_file:
-        zip_file.extractall(TMP_DIR)
+        zip_file.extractall(TMP_GP_DIR)
 
 
-def retrieve_tempos(root: ET.Element) -> list[tuple[int,int,float]]:
-    """https://github.com/lmeullibre/gp-metronome-extractor"""
-    tempos = []
+def convert_audio_to_ogg(root: ET.Element) -> None:
+    # Try to find the embedded audio file path
+    audio_element = root.find("Assets/Asset/EmbeddedFilePath")
+    if audio_element is None: return
+    audio_path_text = audio_element.text
+    if not audio_path_text: return
+    audio_path = TMP_GP_DIR / audio_path_text
+    if not audio_path.exists(): return
 
-    default_tempo = root.find(".//Score/Properties/Tempo")
-    if default_tempo is not None and default_tempo.text:
-        default_bpm = int(default_tempo.text.split()[0])
-        tempos.append((0, 0, default_bpm))
-    else:
-        tempos.append((0, 0, 120))
+    # Load the audio file
+    audio = AudioSegment.from_file(audio_path)
 
-    for automation in root.findall(".//Automation[Type='Tempo']"):
-        # Get the bar number
-        bar_element = automation.find("Bar")
-        if bar_element is None: continue
-        bar_text = bar_element.text
-        if bar_text is None: continue
-        bar = int(bar_text)
-
-        # Get the position in the bar
-        position_element = automation.find("Position")
-        if position_element is None: continue
-        position_text = position_element.text
-        if position_text is None: continue
-        position_decimal = float(position_text)
-        # Convert to internal GP position
-        position = int(position_decimal * 960)
-
-        # Get the tempo value
-        value_element = automation.find("Value")
-        if value_element is None: continue
-        value_text = value_element.text
-        if value_text is None: continue
-        tempo_value = value_text.split()[0]
-        bpm = float(tempo_value)
-
-        # Append the tempo to the list
-        tempos.append((bar, position, bpm))
-
-    total_bars = 0
-    bars = root.findall(".//Score/Bars/Bar")
-    if bars:
-        total_bars = len(bars)
-    else:
-        master_bars = root.findall(".//MasterBar")
-        if master_bars:
-            total_bars = len(master_bars)
-
-    if tempos:
-        total_bars = max(total_bars, max(bar for bar, _, _ in tempos) + 1)
-
-    tempos.sort(key=lambda x: (x[0], x[1]))
-    if len(tempos) > 1 and tempos[0][:-1] == tempos[1][:-1]:
-        tempos.pop(0)
-    return tempos
+    # Export the audio file to OGG format
+    TMP_OUT_DIR.mkdir(parents=True, exist_ok=True)
+    audio.export(TMP_OUT_DIR / SONG_FILENAME, format="ogg")
 
 
 def parse_gpif(gpif_file: Path) -> None:
@@ -89,11 +53,13 @@ def parse_gpif(gpif_file: Path) -> None:
     tree = ET.parse(gpif_file)
     root = tree.getroot()
 
-    # Retrieve the tempo information
-    tempos = retrieve_tempos(root)
-    print(tempos)
+    # Convert the audio to OGG
+    convert_audio_to_ogg(root)
 
-    
+    # Create the chart
+    chart = Chart(root)
+    chart.write_notes_to_file(TMP_OUT_DIR / NOTES_FILENAME)
+
 
 
 def main() -> None:
@@ -106,9 +72,8 @@ def main() -> None:
     extract_gp(gp_file)
 
     # Parse the GPIF file
-    gpif_file = TMP_DIR / GPIF_PATH
+    gpif_file = TMP_GP_DIR / GPIF_PATH
     parse_gpif(gpif_file)
-
 
 
 if __name__ == "__main__":
