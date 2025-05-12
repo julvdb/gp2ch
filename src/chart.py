@@ -50,8 +50,11 @@ class DrumChart:
         # Chart data
         self._resolution: int = -1
         self._num_master_bars: int = -1
+        self._master_bar_start_ticks: list[float] = []           # starting tick value of each master bar
+        self._master_bar_end_ticks: list[float] = []             # ending tick value of each master bar
         self._song_data: SongData = {}
-        self._sync_track_data: list[SyncTrackPoint] = []
+        self._sync_track_data: list[SyncTrackPoint] = []         # (tick, point type, data)
+        self._events_data: list[tuple[int,str]] = []             # (tick, event string)
 
         # Load the Guitar Pro data
         self._retrieve_song_data()
@@ -97,6 +100,8 @@ class DrumChart:
             # Events
             file.write(f"[{self.Header.EVENTS}]\n")
             file.write("{\n")
+            for tick, event_text in self._events_data:
+                file.write(f"  {tick} = E \"{event_text}\"\n")
             file.write("}\n")
 
             # ExpertDrums
@@ -418,6 +423,10 @@ class DrumChart:
         bpm = self._tempo_data[0][1]  # there is always a tempo at 0
         tempo_idx = 0
         for master_bar in range(self._num_master_bars):
+            # Save the starting tick of the master bar
+            self._master_bar_start_ticks.append(tick)
+
+            # Fractional position in terms of master bars
             master_bar_position = float(master_bar)
 
             # Check if there is a time signature change at this master bar
@@ -432,7 +441,8 @@ class DrumChart:
                         (ts_numer, round(log2(ts_denom)))
                     ))
                     ts_idx += 1
-            if ts_numer <= 0 or ts_denom <= 0: continue
+            if ts_numer <= 0 or ts_denom <= 0:
+                raise ValueError(f"Invalid time signature ({ts_numer}/{ts_denom}).")
 
             # Check if there are tempo changes at this master bar
             tempo_changed = False
@@ -483,10 +493,30 @@ class DrumChart:
                 bpm
             )
 
-        print(self._sync_track_data)
+            # Save the ending tick of the master bar
+            self._master_bar_end_ticks.append(tick)
+
+        # Sort the sync track data by tick
+        self._sync_track_data.sort(key=lambda x: x[0])
 
     def _create_events_data(self) -> None:
-        print("TODO: Create Events data")
+        # Start
+        self._events_data.append((0, "music_start"))
+
+        # Sections
+        for master_bar, section_name in self._section_data:
+            # Get the starting tick of the section
+            start_tick = round(self._master_bar_start_ticks[master_bar])
+            # Add the section to the events data
+            self._events_data.append((start_tick, f"section {section_name}"))
+
+        # End
+        end_tick = round(self._master_bar_end_ticks[-1])
+        self._events_data.append((end_tick, "music_end"))
+        self._events_data.append((end_tick, "end"))
+
+        # Sort the events data by tick
+        self._events_data.sort(key=lambda x: x[0])
 
     def _create_expert_drums_data(self) -> None:
         print("TODO: Create ExpertDrums data")
