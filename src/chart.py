@@ -31,7 +31,7 @@ class DrumChart:
         self._root = root
 
         # Guitar Pro data
-        self._tempo_data: list[tuple[float,float]] = []          # (master bar fraction, bpm)
+        self._tempo_data: list[tuple[float,float]] = []          # (master bar position, bpm)
         self._drum_track_id: int = -1                            # track id of the drum track
         self._track_num_staves: dict[int,int] = {}               # track id -> number of staves
         self._rhythm_data: dict[int,int] = {}                    # rhythm id -> rhythm value
@@ -55,24 +55,12 @@ class DrumChart:
         self._retrieve_song_data()
         self._retrieve_tempo_data()
         self._retrieve_track_data()
-        print(self._drum_track_id)
-        print(self._track_num_staves)
         self._retrieve_rhythm_data()
-        print(self._rhythm_data)
         self._retrieve_note_data()
-        print(self._note_data)
         self._retrieve_beat_data()
-        print(self._beat_data)
         self._retrieve_voice_data()
-        print(self._voice_data)
         self._retrieve_bar_data()
-        print(self._bar_data)
         self._retrieve_master_bar_data()
-        print(self._has_anacrusis)
-        print(self._drum_bar_ids)
-        print(self._time_signature_data)
-        print(self._section_data)
-        exit()
 
         # Create the chart data
         self._create_sync_track_data()
@@ -399,55 +387,94 @@ class DrumChart:
         self._section_data.sort(key=lambda x: x[0])
 
 
+    def _master_bar_fraction_to_ch_ticks(self,
+        fraction: float,
+        ts: tuple[int,int],
+        bpm: float
+    ) -> float:
+        # Amount of quarter notes in the master bar
+        quarter_notes = 4 * ts[0]/ts[1]
+        # Duration of a single quarter note
+        seconds_per_quarter_note = 60 / bpm
+        # Duration of the complete master bar
+        master_bar_seconds = quarter_notes * seconds_per_quarter_note
+        # Duration of the fraction
+        fraction_seconds = fraction * master_bar_seconds
+        # Convert the fraction to ticks
+        ticks = fraction_seconds * self._resolution
+        return ticks
+
     def _create_sync_track_data(self) -> None:
-        tick = 0
+        tick = 0.
         ts_idx = 0
-        tempo_idx = 0
         ts_numer, ts_denom = -1, -1
-        bpm = -1
+        bpm = self._tempo_data[0][1]  # there is always a tempo at 0
+        tempo_idx = 0
         for master_bar in range(self._num_master_bars):
-            # Check if there is a time signature change at this bar
+            master_bar_position = float(master_bar)
+
+            # Check if there is a time signature change at this master bar
             if ts_idx < len(self._time_signature_data):
                 ts_point = self._time_signature_data[ts_idx]
                 if ts_point[0] == master_bar:
-                    # If the bar matches,
+                    # If the master bar matches,
                     # add the time signature to the sync track data
                     ts_numer, ts_denom = self._time_signature_data[ts_idx][1:3]
                     self._sync_track_data.append((
-                        tick, SyncTrackPointType.TIME_SIGNATURE,
+                        round(tick), SyncTrackPointType.TIME_SIGNATURE,
                         (ts_numer, ts_denom)
                     ))
                     ts_idx += 1
             if ts_numer <= 0 or ts_denom <= 0: continue
 
-            # Check if there are tempo changes at this bar
+            # Check if there are tempo changes at this master bar
+            tempo_changed = False
             if tempo_idx < len(self._tempo_data):
                 tempo_point = self._tempo_data[tempo_idx]
+                master_bar_position_prev = master_bar_position
 
-                # Add each tempo change in this bar to the sync track data
-                # and increment the current tick
+                # Add each tempo change in this master bar to the sync track data
                 while int(tempo_point[0]) == master_bar:
+                    # Increment the tick up to the tempo point
+                    master_bar_fraction = tempo_point[0] - master_bar_position_prev
+                    if master_bar_fraction > 1e-10:
+                        tempo_changed = True
+                    tick += self._master_bar_fraction_to_ch_ticks(
+                        master_bar_fraction,
+                        (ts_numer, ts_denom),
+                        bpm
+                    )
+
+                    # Create the sync track point
                     bpm = tempo_point[1]
+                    if bpm <= 0: raise ValueError(f"Invalid BPM value ({bpm}).")
                     self._sync_track_data.append((
-                        tick, SyncTrackPointType.BPM,
+                        round(tick), SyncTrackPointType.BPM,
                         bpm
                     ))
                     tempo_idx += 1
 
-                    # Calculate the next tick
-                    # TODO
-
                     # Update the tempo point
+                    master_bar_position_prev = tempo_point[0]
                     if tempo_idx < len(self._tempo_data):
                         tempo_point = self._tempo_data[tempo_idx]
+                        master_bar_position = tempo_point[0]
                     else:
                         break
 
+                # If there was no tempo change, go back to the previous position
+                master_bar_position = master_bar_position_prev
 
-            if bpm <= 0: continue
-
-        print(self._sync_track_data)
-        exit()
+            # Increment the tick up to the next master bar
+            if tempo_changed:
+                master_bar_fraction = master_bar+1 - master_bar_position
+            else:
+                master_bar_fraction = 1
+            tick += self._master_bar_fraction_to_ch_ticks(
+                master_bar_fraction,
+                (ts_numer, ts_denom),
+                bpm
+            )
 
     def _create_events_data(self) -> None:
         print("TODO: Create Events data")
