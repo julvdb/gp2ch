@@ -1,4 +1,5 @@
 from enum import IntEnum, auto
+from dataclasses import dataclass
 
 
 class Dynamic(IntEnum):
@@ -15,14 +16,9 @@ class Dynamic(IntEnum):
         return self.name
 
 
+@dataclass
 class Beat:
-    def __init__(self,
-        bar_fraction: float,
-        note: int,
-        rhythm: int,
-        dynamic: Dynamic
-    ) -> None:
-        self.bar_fraction = bar_fraction
-        self.note = note
-        self.rhythm = rhythm
-        self.dynamic = dynamic
+    beat_id: int
+    midi_notes: list[int]
+    rhythm: int
+    dynamic: Dynamic

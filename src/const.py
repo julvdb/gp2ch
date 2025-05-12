@@ -6,6 +6,9 @@ from enum import StrEnum
 
 # Guitar Pro constants
 GPIF_PATH = Path("Content/score.gpif")
+GP_DRUM_KIT_TYPE = "drumKit"
+GP_INVALID_VOICE = -1
+GP_DEFAULT_DYNAMIC = "MF"
 GP_RHYTHM_DICT = {
     "Whole":    1,
     "Half":     2,

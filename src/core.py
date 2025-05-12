@@ -9,7 +9,7 @@ from .const import (
     GPIF_PATH,
     SONG_FILENAME, NOTES_FILENAME
 )
-from .chart import Chart
+from .chart import DrumChart
 
 
 def extract_gp(gp_file: Path) -> None:
@@ -54,7 +54,7 @@ def parse_gpif(gpif_file: Path) -> None:
     root = tree.getroot()
 
     # Create the chart
-    chart = Chart(root)
+    chart = DrumChart(root)
     chart.write_notes_to_file(TMP_OUT_DIR / NOTES_FILENAME)
 
     # Convert the audio to OGG
