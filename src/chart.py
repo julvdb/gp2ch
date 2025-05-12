@@ -11,6 +11,7 @@ from .const import (
     DefaultValues
 )
 from .beat import Dynamic, Beat
+from .mapping import GPMidiNote, CHMidiNote, DRUMS_GP_TO_CH_MAPPING
 
 
 class DrumChart:
