@@ -2,6 +2,8 @@ from enum import StrEnum
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
+from math import log2
+
 from .const import (
     GP_DRUM_KIT_TYPE, GP_INVALID_VOICE, GP_RHYTHM_DICT,
     SongData,
@@ -69,6 +71,7 @@ class DrumChart:
 
 
     def write_notes_to_file(self, filepath: Path) -> None:
+        filepath.parent.mkdir(parents=True, exist_ok=True)
         with open(filepath, "w") as file:
             # Song
             file.write(f"[{self.Header.SONG}]\n")
@@ -84,7 +87,11 @@ class DrumChart:
             # SyncTrack
             file.write(f"[{self.Header.SYNC_TRACK}]\n")
             file.write("{\n")
-            # file.write(f"{}")
+            for tick, point_type, data in self._sync_track_data:
+                if point_type == SyncTrackPointType.TIME_SIGNATURE:
+                    file.write(f"  {tick} = {point_type} {data[0]} {data[1]}\n")
+                elif point_type == SyncTrackPointType.BPM:
+                    file.write(f"  {tick} = {point_type} {data}\n")
             file.write("}\n")
 
             # Events
@@ -422,7 +429,7 @@ class DrumChart:
                     ts_numer, ts_denom = self._time_signature_data[ts_idx][1:3]
                     self._sync_track_data.append((
                         round(tick), SyncTrackPointType.TIME_SIGNATURE,
-                        (ts_numer, ts_denom)
+                        (ts_numer, round(log2(ts_denom)))
                     ))
                     ts_idx += 1
             if ts_numer <= 0 or ts_denom <= 0: continue
@@ -442,7 +449,7 @@ class DrumChart:
                     tick += self._master_bar_fraction_to_ch_ticks(
                         master_bar_fraction,
                         (ts_numer, ts_denom),
-                        bpm
+                        round(1000 * bpm)
                     )
 
                     # Create the sync track point
