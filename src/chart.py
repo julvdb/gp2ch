@@ -449,7 +449,7 @@ class DrumChart:
                     tick += self._master_bar_fraction_to_ch_ticks(
                         master_bar_fraction,
                         (ts_numer, ts_denom),
-                        round(1000 * bpm)
+                        bpm
                     )
 
                     # Create the sync track point
@@ -457,7 +457,7 @@ class DrumChart:
                     if bpm <= 0: raise ValueError(f"Invalid BPM value ({bpm}).")
                     self._sync_track_data.append((
                         round(tick), SyncTrackPointType.BPM,
-                        bpm
+                        round(1000 * bpm)
                     ))
                     tempo_idx += 1
 
@@ -482,6 +482,8 @@ class DrumChart:
                 (ts_numer, ts_denom),
                 bpm
             )
+
+        print(self._sync_track_data)
 
     def _create_events_data(self) -> None:
         print("TODO: Create Events data")
