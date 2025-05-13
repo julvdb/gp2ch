@@ -121,6 +121,9 @@ class CHMidiNote(IntEnum):
     BLUE_CYMBAL   = 67
     GREEN_CYMBAL  = 68
 
+CH_NOTE_TO_ACCENT = 33
+CH_NOTE_TO_GHOST  = 39
+
 
 DRUMS_GP_TO_CH_MAPPING: dict[GPMidiNote,list[CHMidiNote]] = {
     GPMidiNote.KICK: [CHMidiNote.KICK],

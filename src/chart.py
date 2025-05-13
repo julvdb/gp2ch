@@ -5,13 +5,21 @@ import xml.etree.ElementTree as ET
 from math import log2
 
 from .const import (
-    GP_DRUM_KIT_TYPE, GP_INVALID_VOICE, GP_RHYTHM_DICT,
+    GP_DRUM_KIT_TYPE,
+    GP_INVALID_VOICE,
+    GP_RHYTHM_DICT,
+    GP_DEFAULT_DYNAMIC,
+    DefaultValues,
     SongData,
     SyncTrackPointType, SyncTrackPoint,
-    DefaultValues
+    TrackPointType, TrackPoint,
 )
 from .beat import Dynamic, Beat
-from .mapping import GPMidiNote, CHMidiNote, DRUMS_GP_TO_CH_MAPPING
+from .mapping import (
+    GPMidiNote, CHMidiNote,
+    CH_NOTE_TO_ACCENT, CH_NOTE_TO_GHOST,
+    DRUMS_GP_TO_CH_MAPPING
+)
 
 
 class DrumChart:
@@ -34,28 +42,30 @@ class DrumChart:
         self._root = root
 
         # Guitar Pro data
-        self._tempo_data: list[tuple[float,float]] = []          # (master bar position, bpm)
-        self._drum_track_id: int = -1                            # track id of the drum track
-        self._track_num_staves: dict[int,int] = {}               # track id -> number of staves
-        self._rhythm_data: dict[int,int] = {}                    # rhythm id -> rhythm value
-        self._note_data: dict[int,int] = {}                      # note id -> midi note value
-        self._beat_data: dict[int,Beat] = {}                     # beat id -> Beat object
-        self._voice_data: dict[int,list[int]] = {}               # voice id -> list of beat ids
-        self._bar_data: dict[int,list[int]] = {}                 # bar id -> list of voice ids
-        self._drum_bar_ids: list[int] = []                       # list of bar ids that are part of the drum track,
-                                                                 # with index corresponding to the master bar id
-        self._has_anacrusis: bool = False                        # True if there is an anacrusis
-        self._time_signature_data: list[tuple[int,int,int]] = [] # (master bar id, numerator, denominator)
-        self._section_data: list[tuple[int,str]] = []            # (master bar id, section name)
+        self._tempo_data: list[tuple[float,float]] = []                 # (master bar position, bpm)
+        self._drum_track_id: int = -1                                   # track id of the drum track
+        self._track_num_staves: dict[int,int] = {}                      # track id -> number of staves
+        self._rhythm_data: dict[int,int] = {}                           # rhythm id -> rhythm value
+        self._note_data: dict[int,int] = {}                             # note id -> midi note value
+        self._beat_data: dict[int,Beat] = {}                            # beat id -> Beat object
+        self._voice_data: dict[int,list[int]] = {}                      # voice id -> list of beat ids
+        self._bar_data: dict[int,list[int]] = {}                        # bar id -> list of voice ids
+        self._drum_bar_ids: list[int] = []                              # list of bar ids that are part of the drum track,
+                                                                        # with index corresponding to the master bar id
+        self._has_anacrusis: bool = False                               # True if there is an anacrusis
+        self._time_signature_data: list[tuple[int,int,int]] = []        # (master bar id, numerator, denominator)
+        self._section_data: list[tuple[int,str]] = []                   # (master bar id, section name)
 
         # Chart data
         self._resolution: int = -1
         self._num_master_bars: int = -1
-        self._master_bar_start_ticks: list[float] = []           # starting tick value of each master bar
-        self._master_bar_end_ticks: list[float] = []             # ending tick value of each master bar
-        self._song_data: SongData = {}
-        self._sync_track_data: list[SyncTrackPoint] = []         # (tick, point type, data)
-        self._events_data: list[tuple[int,str]] = []             # (tick, event string)
+        self._master_bar_start_ticks: list[float] = []                  # starting tick value of each master bar
+        self._master_bar_end_ticks: list[float] = []                    # ending tick value of each master bar
+        self._song_data: SongData = {}                                  # song data string -> value
+        self._tick_tempo_data: list[tuple[float,float]] = []                          # (tick, bpm)
+        self._sync_track_data: list[SyncTrackPoint] = []                # (tick, point type, data)
+        self._events_data: list[tuple[int,str]] = []                    # (tick, event string)
+        self._export_drums_data: list[TrackPoint] = []                  # (tick, point_type, data)
 
         # Load the Guitar Pro data
         self._retrieve_song_data()
@@ -108,6 +118,14 @@ class DrumChart:
             # ExpertDrums
             file.write(f"[{self.Header.EXPERT_DRUMS}]\n")
             file.write("{\n")
+            for tick, point_type, data in self._export_drums_data:
+                if point_type == TrackPointType.NOTE:
+                    for ch_note in data:
+                        file.write(f"  {tick} = {point_type} {ch_note} 0\n")
+                elif point_type == TrackPointType.STAR_POWER:
+                    file.write(f"  {tick} = {point_type} {data[0]} {data[1]}\n")
+                elif point_type == TrackPointType.EVENT:
+                    file.write(f"  {tick} = {point_type} [{data}]\n")
             file.write("}\n")
 
 
@@ -417,12 +435,48 @@ class DrumChart:
         ticks = fraction_seconds * self._resolution
         return ticks
 
+    def _rhythm_to_ch_ticks(self,
+        rhythm: int,
+        bpm: float
+    ) -> float:
+        # Amount of quarter notes in the rhythm
+        quarter_notes = 4 / rhythm
+        # Duration of a single quarter note
+        seconds_per_quarter_note = 60 / bpm
+        # Duration of the complete rhythm
+        rhythm_seconds = quarter_notes * seconds_per_quarter_note
+        # Convert the rhythm to ticks
+        ticks = rhythm_seconds * self._resolution
+        return ticks
+
+    def _decrease_ch_notes_intensity(self, ch_notes: list[CHMidiNote]) -> None:
+        # Decrease the intensity by removing accents or adding ghost notes
+        for note in range(CHMidiNote.RED, CHMidiNote.ORANGE + 1):
+            if note not in ch_notes: continue
+            accent = CHMidiNote(note + CH_NOTE_TO_ACCENT)
+            ghost = CHMidiNote(note + CH_NOTE_TO_GHOST)
+            if accent in ch_notes:
+                ch_notes.remove(accent)
+            elif ghost not in ch_notes:
+                ch_notes.append(ghost)
+
+    def _increase_ch_notes_intensity(self, ch_notes: list[CHMidiNote]) -> None:
+        # Increase the intensity by adding accents or removing ghost notes
+        for note in range(CHMidiNote.RED, CHMidiNote.ORANGE + 1):
+            if note not in ch_notes: continue
+            accent = CHMidiNote(note + CH_NOTE_TO_ACCENT)
+            ghost = CHMidiNote(note + CH_NOTE_TO_GHOST)
+            if ghost in ch_notes:
+                ch_notes.remove(ghost)
+            elif accent not in ch_notes:
+                ch_notes.append(accent)
+
     def _create_sync_track_data(self) -> None:
         tick = 0.
         ts_idx = 0
         ts_numer, ts_denom = -1, -1
-        bpm = self._tempo_data[0][1]  # there is always a tempo at 0
         tempo_idx = 0
+        bpm = self._tempo_data[tempo_idx][1]  # there is always a tempo at 0
         for master_bar in range(self._num_master_bars):
             # Save the starting tick of the master bar
             self._master_bar_start_ticks.append(tick)
@@ -466,6 +520,7 @@ class DrumChart:
                     # Create the sync track point
                     bpm = tempo_point[1]
                     if bpm <= 0: raise ValueError(f"Invalid BPM value ({bpm}).")
+                    self._tick_tempo_data.append((tick, bpm))
                     self._sync_track_data.append((
                         round(tick), SyncTrackPointType.BPM,
                         round(1000 * bpm)
@@ -520,4 +575,76 @@ class DrumChart:
         self._events_data.sort(key=lambda x: x[0])
 
     def _create_expert_drums_data(self) -> None:
-        print("TODO: Create ExpertDrums data")
+        default_dynamic = Dynamic[GP_DEFAULT_DYNAMIC]
+
+        tick = 0.
+        ts_idx = 0
+        ts_numer, ts_denom = -1, -1
+        tempo_idx = 0
+        bpm = self._tempo_data[tempo_idx][1]  # there is always a tempo at 0
+        for master_bar in range(self._num_master_bars):
+            # Get the bar id of the drum track
+            if master_bar >= len(self._drum_bar_ids):
+                raise ValueError(f"No drum data found for master bar {master_bar}.")
+            bar_id = self._drum_bar_ids[master_bar]
+
+            # Get the voices in this bar
+            voice_ids = self._bar_data.get(bar_id, [])
+            if not voice_ids: continue
+
+            for voice_id in voice_ids:
+                # Get the beat ids in this voice
+                beat_ids = self._voice_data.get(voice_id, [])
+                if not beat_ids: continue
+
+                for beat_id in beat_ids:
+                    # Get the beat object
+                    beat = self._beat_data.get(beat_id, None)
+                    if beat is None: continue
+
+
+                    # Convert the midi notes to CH notes
+                    ch_notes: list[CHMidiNote] = []
+                    for midi_note in beat.midi_notes:
+                        # Convert the midi note to a GP note
+                        gp_note = GPMidiNote(midi_note)
+
+                        # Convert the midi note to CH notes
+                        midi_ch_notes = DRUMS_GP_TO_CH_MAPPING.get(gp_note, None)
+                        if midi_ch_notes is None: continue
+
+                        # Handle the beat dynamic
+                        if beat.dynamic < default_dynamic:
+                            # Decrease the intensity
+                            self._decrease_ch_notes_intensity(midi_ch_notes)
+                        elif beat.dynamic > default_dynamic:
+                            # Increase the intensity
+                            self._increase_ch_notes_intensity(midi_ch_notes)
+
+                        # Add the notes to the list
+                        ch_notes.extend(midi_ch_notes)
+
+                    # Add the notes to the export drums data
+                    if ch_notes:
+                        self._export_drums_data.append((
+                            round(tick), TrackPointType.NOTE,
+                            ch_notes
+                        ))
+
+
+                    # TODO: fix tick updating when the tempo changes during a beat
+
+                    # Update the current tick
+                    tick += self._rhythm_to_ch_ticks(beat.rhythm, bpm)
+
+                    # Update the bpm
+                    next_tempo_idx = tempo_idx
+                    while next_tempo_idx < len(self._tick_tempo_data):
+                        tempo_tick, tempo_bpm = self._tick_tempo_data[next_tempo_idx]
+
+                        # Stop if the tempo tick occurs later
+                        if tempo_tick > tick: break
+
+                        # Update the bpm
+                        bpm = tempo_bpm
+                        next_tempo_idx += 1

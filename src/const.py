@@ -20,11 +20,24 @@ GP_RHYTHM_DICT = {
 }
 
 # .chart file data
+class DefaultValues:
+    SONG_RESOLUTION = 480  # ticks
+    SONG_OFFSET     = 0    # seconds
+    # TODO
+    COUNTDOWN_TIME  = 3    # seconds
+
 class SyncTrackPointType(StrEnum):
     BPM            = "B"
     TIME_SIGNATURE = "TS"
 
-DEFAULT_COUNTDOWN_TIME = 3  # seconds
+class TrackPointType(StrEnum):
+    NOTE       = "N"
+    STAR_POWER = "S"
+    EVENT      = "E"
+
+type SongData = dict[str, Any]
+type SyncTrackPoint = tuple[int, SyncTrackPointType, Any]
+type TrackPoint = tuple[int, TrackPointType, Any]
 
 # Temporary directories
 TMP_DIR = Path("tmp")
@@ -35,9 +48,4 @@ TMP_OUT_DIR = TMP_DIR / "out"
 SONG_FILENAME = "song.ogg"
 NOTES_FILENAME = "notes.chart"
 
-type SongData = dict[str, Any]
-type SyncTrackPoint = tuple[int, SyncTrackPointType, Any]
 
-class DefaultValues:
-    SONG_RESOLUTION = 480
-    SONG_OFFSET     = 0

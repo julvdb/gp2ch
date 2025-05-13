@@ -32,11 +32,14 @@ def extract_gp(gp_file: Path) -> None:
 def convert_audio_to_ogg(root: ET.Element) -> None:
     # Try to find the embedded audio file path
     audio_element = root.find("Assets/Asset/EmbeddedFilePath")
-    if audio_element is None: return
+    if audio_element is None:
+        return
     audio_path_text = audio_element.text
-    if not audio_path_text: return
+    if not audio_path_text:
+        return
     audio_path = TMP_GP_DIR / audio_path_text
-    if not audio_path.exists(): return
+    if not audio_path.exists():
+        return
 
     # Load the audio file
     audio = AudioSegment.from_file(audio_path)
@@ -62,10 +65,12 @@ def parse_gpif(gpif_file: Path) -> None:
     convert_audio_to_ogg(root)
 
 
-
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("input_file", type=str, help="Path to the Guitar Pro (.gp) file.")
+    parser.add_argument(
+        "input_file", type=str,
+        help="Path to the Guitar Pro (.gp) file."
+    )
     args = parser.parse_args()
 
     # Read the file path from the args
