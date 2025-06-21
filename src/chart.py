@@ -289,12 +289,13 @@ class DrumChart:
             rhythm = self._rhythm_data.get(rhythm_id, -1)
             if rhythm < 0: continue
 
-            # Get the note id
+            # Get the note ids (empty for rests)
             notes_element = beat_element.find(".//Notes")
-            if notes_element is None: continue
-            notes_text = notes_element.text
-            if notes_text is None: continue
-            note_ids = [int(note_str) for note_str in notes_text.split(" ")]
+            note_ids: list[int] = []
+            if notes_element is not None:
+                notes_text = notes_element.text
+                if notes_text is not None:
+                    note_ids = [int(note_str) for note_str in notes_text.split(" ")]
 
             # Get the MIDI note values
             midi_notes: list[int] = []
@@ -579,7 +580,7 @@ class DrumChart:
 
         tick = 0.
         ts_idx = 0
-        ts_numer, ts_denom = -1, -1
+        ts_bar, ts_numer, ts_denom = self._time_signature_data[ts_idx]
         tempo_idx = 0
         bpm = self._tempo_data[tempo_idx][1]  # there is always a tempo at 0
         for master_bar in range(self._num_master_bars):
@@ -588,20 +589,31 @@ class DrumChart:
                 raise ValueError(f"No drum data found for master bar {master_bar}.")
             bar_id = self._drum_bar_ids[master_bar]
 
-            # Get the voices in this bar
-            voice_ids = self._bar_data.get(bar_id, [])
-            if not voice_ids: continue
+            # Update the time signature
+            while ts_idx+1 < len(self._time_signature_data):
+                ts_point = self._time_signature_data[ts_idx+1]
+                if ts_point[0] > master_bar: break
+                # If the master bar matches, update the time signature
+                ts_idx += 1
+                ts_bar, ts_numer, ts_denom = self._time_signature_data[ts_idx]
 
+            # Get the voices in this bar
+            voice_ids = self._bar_data.get(bar_id, None)
+            if voice_ids is None: continue
+
+            # Start at the current position
+            master_bar_position = float(master_bar)
+
+            # Go through all notes in this bar
             for voice_id in voice_ids:
                 # Get the beat ids in this voice
-                beat_ids = self._voice_data.get(voice_id, [])
-                if not beat_ids: continue
+                beat_ids = self._voice_data.get(voice_id, None)
+                if beat_ids is None: continue
 
                 for beat_id in beat_ids:
                     # Get the beat object
                     beat = self._beat_data.get(beat_id, None)
                     if beat is None: continue
-
 
                     # Convert the midi notes to CH notes
                     ch_notes: list[CHMidiNote] = []
@@ -631,20 +643,46 @@ class DrumChart:
                             ch_notes
                         ))
 
+                    # Calculate the next master bar position
+                    master_bar_fraction = (ts_denom/ts_numer) / beat.rhythm
+                    next_master_bar_position = master_bar_position + master_bar_fraction
 
-                    # TODO: fix tick updating when the tempo changes during a beat
+                    # Update the current tick, master bar position, and bpm
+                    while tempo_idx < len(self._tempo_data)-1:
+                        tempo_position, tempo_bpm = self._tempo_data[tempo_idx+1]
 
-                    # Update the current tick
-                    tick += self._rhythm_to_ch_ticks(beat.rhythm, bpm)
+                        # Stop if the tempo change occurs later
+                        if tempo_position > next_master_bar_position:
+                            # Update the current tick
+                            tick += self._master_bar_fraction_to_ch_ticks(
+                                next_master_bar_position - master_bar_position,
+                                (ts_numer, ts_denom),
+                                bpm
+                            )
+                            # Update the current master bar position
+                            master_bar_position = next_master_bar_position
+                            break
 
-                    # Update the bpm
-                    next_tempo_idx = tempo_idx
-                    while next_tempo_idx < len(self._tick_tempo_data):
-                        tempo_tick, tempo_bpm = self._tick_tempo_data[next_tempo_idx]
+                        # Update the current tick
+                        tick += self._master_bar_fraction_to_ch_ticks(
+                            tempo_position - master_bar_position,
+                            (ts_numer, ts_denom),
+                            bpm
+                        )
 
-                        # Stop if the tempo tick occurs later
-                        if tempo_tick > tick: break
+                        # Update the current master bar position
+                        master_bar_position = tempo_position
 
                         # Update the bpm
                         bpm = tempo_bpm
-                        next_tempo_idx += 1
+                        tempo_idx += 1
+
+                    else:
+                        # Update the current tick
+                        tick += self._master_bar_fraction_to_ch_ticks(
+                            next_master_bar_position - master_bar_position,
+                            (ts_numer, ts_denom),
+                            bpm
+                        )
+                        # Update the current master bar position
+                        master_bar_position = next_master_bar_position
