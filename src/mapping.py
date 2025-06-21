@@ -103,15 +103,13 @@ class CHMidiNote(IntEnum):
     KICK          = 0
     RED           = 1
     YELLOW        = 2
-    GREEN         = 3
-    BLUE          = 4
-    ORANGE        = 5
+    BLUE          = 3
+    GREEN         = 4
     KICK2         = 32
     RED_ACCENT    = 34
     YELLOW_ACCENT = 35
     BLUE_ACCENT   = 36
     GREEN_ACCENT  = 37
-    ORANGE_ACCENT = 38
     RED_GHOST     = 40
     YELLOW_GHOST  = 41
     BLUE_GHOST    = 42

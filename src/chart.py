@@ -421,25 +421,17 @@ class DrumChart:
 
     def _master_bar_fraction_to_ch_ticks(self,
         fraction: float,
-        ts: tuple[int,int],
-        bpm: float
+        ts: tuple[int,int]
     ) -> float:
         # Amount of quarter notes in the master bar
         quarter_notes = 4 * ts[0]/ts[1]
-        # Duration of a single quarter note
-        seconds_per_quarter_note = 60 / bpm
-        # Duration of the complete master bar
-        master_bar_seconds = quarter_notes * seconds_per_quarter_note
-        # Duration of the fraction
-        fraction_seconds = fraction * master_bar_seconds
+        # Amount of ticks in the whole master bar
+        master_bar_ticks = self._resolution * quarter_notes
         # Convert the fraction to ticks
-        ticks = fraction_seconds * self._resolution
+        ticks = fraction * master_bar_ticks
         return ticks
 
-    def _rhythm_to_ch_ticks(self,
-        rhythm: int,
-        bpm: float
-    ) -> float:
+    def _rhythm_to_ch_ticks(self, rhythm: int, bpm: float) -> float:
         # Amount of quarter notes in the rhythm
         quarter_notes = 4 / rhythm
         # Duration of a single quarter note
@@ -452,7 +444,7 @@ class DrumChart:
 
     def _decrease_ch_notes_intensity(self, ch_notes: list[CHMidiNote]) -> None:
         # Decrease the intensity by removing accents or adding ghost notes
-        for note in range(CHMidiNote.RED, CHMidiNote.ORANGE + 1):
+        for note in range(CHMidiNote.RED, CHMidiNote.GREEN + 1):
             if note not in ch_notes: continue
             accent = CHMidiNote(note + CH_NOTE_TO_ACCENT)
             ghost = CHMidiNote(note + CH_NOTE_TO_GHOST)
@@ -463,7 +455,7 @@ class DrumChart:
 
     def _increase_ch_notes_intensity(self, ch_notes: list[CHMidiNote]) -> None:
         # Increase the intensity by adding accents or removing ghost notes
-        for note in range(CHMidiNote.RED, CHMidiNote.ORANGE + 1):
+        for note in range(CHMidiNote.RED, CHMidiNote.GREEN + 1):
             if note not in ch_notes: continue
             accent = CHMidiNote(note + CH_NOTE_TO_ACCENT)
             ghost = CHMidiNote(note + CH_NOTE_TO_GHOST)
@@ -514,8 +506,7 @@ class DrumChart:
                         tempo_changed = True
                     tick += self._master_bar_fraction_to_ch_ticks(
                         master_bar_fraction,
-                        (ts_numer, ts_denom),
-                        bpm
+                        (ts_numer, ts_denom)
                     )
 
                     # Create the sync track point
@@ -546,8 +537,7 @@ class DrumChart:
                 master_bar_fraction = 1
             tick += self._master_bar_fraction_to_ch_ticks(
                 master_bar_fraction,
-                (ts_numer, ts_denom),
-                bpm
+                (ts_numer, ts_denom)
             )
 
             # Save the ending tick of the master bar
@@ -656,8 +646,7 @@ class DrumChart:
                             # Update the current tick
                             tick += self._master_bar_fraction_to_ch_ticks(
                                 next_master_bar_position - master_bar_position,
-                                (ts_numer, ts_denom),
-                                bpm
+                                (ts_numer, ts_denom)
                             )
                             # Update the current master bar position
                             master_bar_position = next_master_bar_position
@@ -666,8 +655,7 @@ class DrumChart:
                         # Update the current tick
                         tick += self._master_bar_fraction_to_ch_ticks(
                             tempo_position - master_bar_position,
-                            (ts_numer, ts_denom),
-                            bpm
+                            (ts_numer, ts_denom)
                         )
 
                         # Update the current master bar position
@@ -681,8 +669,7 @@ class DrumChart:
                         # Update the current tick
                         tick += self._master_bar_fraction_to_ch_ticks(
                             next_master_bar_position - master_bar_position,
-                            (ts_numer, ts_denom),
-                            bpm
+                            (ts_numer, ts_denom)
                         )
                         # Update the current master bar position
                         master_bar_position = next_master_bar_position
