@@ -45,7 +45,7 @@ class DrumChart:
         self._tempo_data: list[tuple[float,float]] = []                 # (master bar position, bpm)
         self._drum_track_id: int = -1                                   # track id of the drum track
         self._track_num_staves: dict[int,int] = {}                      # track id -> number of staves
-        self._rhythm_data: dict[int,int] = {}                           # rhythm id -> rhythm value
+        self._rhythm_data: dict[int,float] = {}                         # rhythm id -> rhythm value
         self._note_data: dict[int,int] = {}                             # note id -> midi note value
         self._beat_data: dict[int,Beat] = {}                            # beat id -> Beat object
         self._voice_data: dict[int,list[int]] = {}                      # voice id -> list of beat ids
@@ -245,6 +245,21 @@ class DrumChart:
             if value_text is None: continue
             rhythm_value = GP_RHYTHM_DICT.get(value_text, None)
             if rhythm_value is None: continue
+
+            # Get the tuplet kind
+            tuplet_element = rhythm_element.find(".//PrimaryTuplet")
+            if tuplet_element is not None:
+                tuplet_numer_text = tuplet_element.get("num", "1")
+                tuplet_denom_text = tuplet_element.get("den", "1")
+                try:
+                    tuplet_numer = float(tuplet_numer_text)
+                    tuplet_denom = float(tuplet_denom_text)
+
+                    # Adjust the rhythm value
+                    rhythm_value *= tuplet_numer/tuplet_denom
+                except ValueError:
+                    pass
+
             self._rhythm_data[rhythm_id] = rhythm_value
 
     def _retrieve_note_data(self) -> None:
@@ -570,9 +585,8 @@ class DrumChart:
 
         tick = 0.
         ts_idx = 0
-        ts_bar, ts_numer, ts_denom = self._time_signature_data[ts_idx]
+        _, ts_numer, ts_denom = self._time_signature_data[ts_idx]
         tempo_idx = 0
-        bpm = self._tempo_data[tempo_idx][1]  # there is always a tempo at 0
         for master_bar in range(self._num_master_bars):
             # Get the bar id of the drum track
             if master_bar >= len(self._drum_bar_ids):
@@ -581,11 +595,11 @@ class DrumChart:
 
             # Update the time signature
             while ts_idx+1 < len(self._time_signature_data):
-                ts_point = self._time_signature_data[ts_idx+1]
-                if ts_point[0] > master_bar: break
+                next_ts_bar, _, _ = self._time_signature_data[ts_idx+1]
+                if next_ts_bar > master_bar: break
                 # If the master bar matches, update the time signature
                 ts_idx += 1
-                ts_bar, ts_numer, ts_denom = self._time_signature_data[ts_idx]
+                _, ts_numer, ts_denom = self._time_signature_data[ts_idx]
 
             # Get the voices in this bar
             voice_ids = self._bar_data.get(bar_id, None)
@@ -639,7 +653,7 @@ class DrumChart:
 
                     # Update the current tick, master bar position, and bpm
                     while tempo_idx < len(self._tempo_data)-1:
-                        tempo_position, tempo_bpm = self._tempo_data[tempo_idx+1]
+                        tempo_position, _ = self._tempo_data[tempo_idx+1]
 
                         # Stop if the tempo change occurs later
                         if tempo_position > next_master_bar_position:
@@ -662,7 +676,6 @@ class DrumChart:
                         master_bar_position = tempo_position
 
                         # Update the bpm
-                        bpm = tempo_bpm
                         tempo_idx += 1
 
                     else:

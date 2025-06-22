@@ -20,5 +20,5 @@ class Dynamic(IntEnum):
 class Beat:
     beat_id: int
     midi_notes: list[int]
-    rhythm: int
+    rhythm: float
     dynamic: Dynamic
