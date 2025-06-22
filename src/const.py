@@ -23,7 +23,7 @@ GP_RHYTHM_DICT = {
 class DefaultValues:
     SONG_RESOLUTION = 480  # ticks
     SONG_OFFSET     = 0    # seconds
-    # TODO
+    # TODO: add countdown time
     COUNTDOWN_TIME  = 3    # seconds
 
 class SyncTrackPointType(StrEnum):

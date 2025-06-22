@@ -1,5 +1,11 @@
-from enum import IntEnum, auto
+from enum import IntEnum, StrEnum, auto
 from dataclasses import dataclass
+
+
+class GraceNoteType(StrEnum):
+    NONE        = ""
+    BEFORE_BEAT = "BeforeBeat"
+    ON_BEAT     = "OnBeat"
 
 
 class Dynamic(IntEnum):
@@ -22,3 +28,4 @@ class Beat:
     midi_notes: list[int]
     rhythm: float
     dynamic: Dynamic
+    grace_note_type: GraceNoteType

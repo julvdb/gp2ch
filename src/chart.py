@@ -14,7 +14,7 @@ from .const import (
     SyncTrackPointType, SyncTrackPoint,
     TrackPointType, TrackPoint,
 )
-from .beat import Dynamic, Beat
+from .beat import GraceNoteType, Dynamic, Beat
 from .mapping import (
     GPMidiNote, CHMidiNote,
     CH_NOTE_TO_ACCENT, CH_NOTE_TO_GHOST,
@@ -213,7 +213,7 @@ class DrumChart:
         track_elements = self._root.findall(".//Tracks/Track")
         for track_element in track_elements:
             # Get the id
-            track_id = int(track_element.attrib.get("id", -1))
+            track_id = int(track_element.get("id", -1))
             if track_id < 0: continue
 
             # Determine if the track is a drum track
@@ -235,7 +235,7 @@ class DrumChart:
         rhythm_elements = self._root.findall(".//Rhythms/Rhythm")
         for rhythm_element in rhythm_elements:
             # Get the id
-            rhythm_id = int(rhythm_element.attrib.get("id", -1))
+            rhythm_id = int(rhythm_element.get("id", -1))
             if rhythm_id < 0: continue
 
             # Get the rhythm value
@@ -266,7 +266,7 @@ class DrumChart:
         note_elements = self._root.findall(".//Notes/Note")
         for note_element in note_elements:
             # Get the id
-            note_id = int(note_element.attrib.get("id", -1))
+            note_id = int(note_element.get("id", -1))
             if note_id < 0: continue
 
             # Get the midi note
@@ -281,23 +281,13 @@ class DrumChart:
         beat_elements = self._root.findall(".//Beats/Beat")
         for beat_element in beat_elements:
             # Get the id
-            beat_id = int(beat_element.attrib.get("id", -1))
+            beat_id = int(beat_element.get("id", -1))
             if beat_id < 0: continue
-
-            # Get the dynamic
-            dynamic_element = beat_element.find(".//Dynamic")
-            if dynamic_element is None: continue
-            dynamic_text = dynamic_element.text
-            if dynamic_text is None: continue
-            try:
-                dynamic = Dynamic[dynamic_text]
-            except KeyError:
-                continue
 
             # Get the rhythm id
             rhythm_element = beat_element.find(".//Rhythm")
             if rhythm_element is None: continue
-            rhythm_id = int(rhythm_element.attrib.get("ref", -1))
+            rhythm_id = int(rhythm_element.get("ref", -1))
             if rhythm_id < 0: continue
 
             # Get the rhythm value
@@ -322,15 +312,37 @@ class DrumChart:
                 # Append the note value to the list
                 midi_notes.append(midi_note)
 
+            # Get the grace note type
+            grace_note_type = GraceNoteType.NONE
+            grace_note_element = beat_element.find(".//GraceNotes")
+            if grace_note_element is not None:
+                grace_note_text = grace_note_element.text
+                if grace_note_text is not None:
+                    try:
+                        grace_note_type = GraceNoteType(grace_note_text)
+                    except ValueError:
+                        pass
+
+            # Get the dynamic
+            dynamic = Dynamic[GP_DEFAULT_DYNAMIC]
+            dynamic_element = beat_element.find(".//Dynamic")
+            if dynamic_element is not None:
+                dynamic_text = dynamic_element.text
+                if dynamic_text is not None:
+                    try:
+                        dynamic = Dynamic[dynamic_text]
+                    except KeyError:
+                        pass
+
             # Create the beat
-            beat = Beat(beat_id, midi_notes, rhythm, dynamic)
+            beat = Beat(beat_id, midi_notes, rhythm, dynamic, grace_note_type)
             self._beat_data[beat_id] = beat
 
     def _retrieve_voice_data(self) -> None:
         voice_elements = self._root.findall(".//Voices/Voice")
         for voice_element in voice_elements:
             # Get the id
-            voice_id = int(voice_element.attrib.get("id", -1))
+            voice_id = int(voice_element.get("id", -1))
             if voice_id < 0: continue
 
             # Get the beat ids
@@ -348,7 +360,7 @@ class DrumChart:
         bar_elements = self._root.findall(".//Bars/Bar")
         for bar_element in bar_elements:
             # Get the bar number
-            bar_number = int(bar_element.attrib.get("id", -1))
+            bar_number = int(bar_element.get("id", -1))
             if bar_number < 0: continue
 
             # Get the voice ids
@@ -370,6 +382,8 @@ class DrumChart:
         anacrusis_element = self._root.find(".//Anacrusis")
         if anacrusis_element is not None:
             self._has_anacrusis = True
+            # TODO: add support for anacrusis
+            raise NotImplementedError("Anacruses (pickup bars) are not supported yet.")
 
         # Find all MasterBar elements
         master_bar_elements = self._root.findall(".//MasterBar")
@@ -446,15 +460,11 @@ class DrumChart:
         ticks = fraction * master_bar_ticks
         return ticks
 
-    def _rhythm_to_ch_ticks(self, rhythm: int, bpm: float) -> float:
+    def _rhythm_to_ch_ticks(self, rhythm: float) -> float:
         # Amount of quarter notes in the rhythm
         quarter_notes = 4 / rhythm
-        # Duration of a single quarter note
-        seconds_per_quarter_note = 60 / bpm
-        # Duration of the complete rhythm
-        rhythm_seconds = quarter_notes * seconds_per_quarter_note
         # Convert the rhythm to ticks
-        ticks = rhythm_seconds * self._resolution
+        ticks = self._resolution * quarter_notes
         return ticks
 
     def _decrease_ch_notes_intensity(self, ch_notes: list[CHMidiNote]) -> None:
@@ -583,6 +593,9 @@ class DrumChart:
     def _create_expert_drums_data(self) -> None:
         default_dynamic = Dynamic[GP_DEFAULT_DYNAMIC]
 
+        # Amount to change the current note duration by
+        delta_rhythm: float | None = None
+
         tick = 0.
         ts_idx = 0
         _, ts_numer, ts_denom = self._time_signature_data[ts_idx]
@@ -619,6 +632,14 @@ class DrumChart:
                     beat = self._beat_data.get(beat_id, None)
                     if beat is None: continue
 
+                    # Calculate the rhythm
+                    rhythm = beat.rhythm
+                    if delta_rhythm is not None:
+                        rhythm = 1/(1/rhythm + 1/delta_rhythm)
+                        delta_rhythm = None
+
+                    # TODO: skip tied notes
+
                     # Convert the midi notes to CH notes
                     ch_notes: list[CHMidiNote] = []
                     for midi_note in beat.midi_notes:
@@ -637,8 +658,18 @@ class DrumChart:
                             # Increase the intensity
                             self._increase_ch_notes_intensity(midi_ch_notes)
 
+                        # TODO: ghost notes
+
                         # Add the notes to the list
                         ch_notes.extend(midi_ch_notes)
+
+                    # Handle grace notes:
+                    #   before beat -> subtract length of grace note from ticks
+                    #   on beat     -> decrease length of next note by length of grace note
+                    if beat.grace_note_type is GraceNoteType.BEFORE_BEAT:
+                        tick -= self._rhythm_to_ch_ticks(beat.rhythm)
+                    elif beat.grace_note_type is GraceNoteType.ON_BEAT:
+                        delta_rhythm = -beat.rhythm
 
                     # Add the notes to the export drums data
                     if ch_notes:
@@ -648,7 +679,7 @@ class DrumChart:
                         ))
 
                     # Calculate the next master bar position
-                    master_bar_fraction = (ts_denom/ts_numer) / beat.rhythm
+                    master_bar_fraction = (ts_denom/ts_numer) / rhythm
                     next_master_bar_position = master_bar_position + master_bar_fraction
 
                     # Update the current tick, master bar position, and bpm
