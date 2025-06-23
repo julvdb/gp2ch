@@ -8,7 +8,7 @@ from pydub import AudioSegment
 from .const import (
     TMP_GP_DIR, TMP_OUT_DIR,
     GPIF_PATH,
-    SONG_FILENAME, NOTES_FILENAME
+    INI_FILENAME, SONG_FILENAME, NOTES_FILENAME
 )
 from .chart import DrumChart
 
@@ -59,7 +59,8 @@ def parse_gpif(gpif_file: Path) -> None:
 
     # Create the chart
     chart = DrumChart(root)
-    chart.write_notes_to_file(TMP_OUT_DIR / NOTES_FILENAME)
+    chart.write_ini_file(TMP_OUT_DIR / INI_FILENAME)
+    chart.write_notes_chart_file(TMP_OUT_DIR / NOTES_FILENAME)
 
     # Convert the audio to OGG
     convert_audio_to_ogg(root)

@@ -19,12 +19,25 @@ GP_RHYTHM_DICT = {
     "64th":    64
 }
 
+# Output filenames
+INI_FILENAME = "song.ini"
+SONG_FILENAME = "song.ogg"
+NOTES_FILENAME = "notes.chart"
+
 # .chart file data
 class DefaultValues:
-    SONG_RESOLUTION = 480  # ticks
-    SONG_OFFSET     = 0    # seconds
+    INI_DIFFICULTY     = -1
+    SONG_RESOLUTION    = 480  # ticks
+    SONG_GENRE         = "rock"
+    SONG_MUSIC_STREAM  = SONG_FILENAME
+    SONG_OFFSET        = 0    # seconds
+    SONG_PLAYER2       = "bass"
+    SONG_DIFFICULTY    = 0
+    SONG_PREVIEW_START = 0    # ticks(?)
+    SONG_PREVIEW_END   = 0    # ticks(?)
+    SONG_MEDIA_TYPE    = "cd"
     # TODO: add countdown time
-    COUNTDOWN_TIME  = 3    # seconds
+    COUNTDOWN_TIME     = 3    # seconds
 
 class SyncTrackPointType(StrEnum):
     BPM            = "B"
@@ -43,9 +56,3 @@ type TrackPoint = tuple[int, TrackPointType, Any]
 TMP_DIR = Path("tmp")
 TMP_GP_DIR = TMP_DIR / "gp"
 TMP_OUT_DIR = TMP_DIR / "out"
-
-# Output filenames
-SONG_FILENAME = "song.ogg"
-NOTES_FILENAME = "notes.chart"
-
-

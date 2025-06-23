@@ -14,7 +14,7 @@ from .const import (
     SyncTrackPointType, SyncTrackPoint,
     TrackPointType, TrackPoint,
 )
-from .beat import GraceNoteType, Dynamic, Beat
+from .gp import AntiAccent, Note, GraceNoteType, Dynamic, Beat
 from .mapping import (
     GPMidiNote, CHMidiNote,
     CH_NOTE_TO_ACCENT, CH_NOTE_TO_GHOST,
@@ -22,22 +22,40 @@ from .mapping import (
 )
 
 
+class IniHeader(StrEnum):
+    SONG = "song"
+
+class IniSongEntry(StrEnum):
+    NAME               = "name"
+    ARTIST             = "artist"
+    ALBUM              = "album"
+    CHARTER            = "charter"
+    FRETS              = "frets"
+    PRO_DRUMS          = "pro_drums"
+
+class NotesHeader(StrEnum):
+    SONG         = "Song"
+    SYNC_TRACK   = "SyncTrack"
+    EVENTS       = "Events"
+    EXPERT_DRUMS = "ExpertDrums"
+
+class NotesSongEntry(StrEnum):
+    RESOLUTION    = "Resolution"
+    TITLE         = "Title"
+    ARTIST        = "Artist"
+    ALBUM         = "Album"
+    CHARTER       = "Charter"
+    GENRE         = "Genre"
+    MUSIC_STREAM  = "MusicStream"
+    OFFSET        = "Offset"
+    PLAYER2       = "Player2"
+    DIFFICULTY    = "Difficulty"
+    PREVIEW_START = "PreviewStart"
+    PREVIEW_END   = "PreviewEnd"
+    MEDIA_TYPE    = "MediaType"
+
+
 class DrumChart:
-    class Header(StrEnum):
-        SONG         = "Song"
-        SYNC_TRACK   = "SyncTrack"
-        EVENTS       = "Events"
-        EXPERT_DRUMS = "ExpertDrums"
-
-    class SongEntry(StrEnum):
-        RESOLUTION = "Resolution"
-        TITLE      = "Title"
-        ARTIST     = "Artist"
-        ALBUM      = "Album"
-        CHARTER    = "Charter"
-        OFFSET     = "Offset"
-
-
     def __init__(self, root: ET.Element) -> None:
         self._root = root
 
@@ -46,7 +64,7 @@ class DrumChart:
         self._drum_track_id: int = -1                                   # track id of the drum track
         self._track_num_staves: dict[int,int] = {}                      # track id -> number of staves
         self._rhythm_data: dict[int,float] = {}                         # rhythm id -> rhythm value
-        self._note_data: dict[int,int] = {}                             # note id -> midi note value
+        self._note_data: dict[int,Note] = {}                            # note id -> Note object
         self._beat_data: dict[int,Beat] = {}                            # beat id -> Beat object
         self._voice_data: dict[int,list[int]] = {}                      # voice id -> list of beat ids
         self._bar_data: dict[int,list[int]] = {}                        # bar id -> list of voice ids
@@ -84,22 +102,40 @@ class DrumChart:
         self._create_expert_drums_data()
 
 
-    def write_notes_to_file(self, filepath: Path) -> None:
+    def write_ini_file(self, filepath: Path) -> None:
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        with open(filepath, "w") as file:
+            file.write(f"[{IniHeader.SONG}]\n")
+            file.write(f"{IniSongEntry.NAME} = {self._song_data[NotesSongEntry.TITLE]}\n")
+            file.write(f"{IniSongEntry.ARTIST} = {self._song_data[NotesSongEntry.ARTIST]}\n")
+            file.write(f"{IniSongEntry.ALBUM} = {self._song_data[NotesSongEntry.ALBUM]}\n")
+            file.write(f"{IniSongEntry.CHARTER} = {self._song_data[NotesSongEntry.CHARTER]}\n")
+            file.write(f"{IniSongEntry.FRETS} = {self._song_data[NotesSongEntry.CHARTER]}\n")
+            file.write(f"{IniSongEntry.PRO_DRUMS} = True\n")
+
+    def write_notes_chart_file(self, filepath: Path) -> None:
         filepath.parent.mkdir(parents=True, exist_ok=True)
         with open(filepath, "w") as file:
             # Song
-            file.write(f"[{self.Header.SONG}]\n")
+            file.write(f"[{NotesHeader.SONG}]\n")
             file.write("{\n")
-            file.write(f"  {self.SongEntry.RESOLUTION} = {self._song_data[self.SongEntry.RESOLUTION]}\n")
-            file.write(f"  {self.SongEntry.TITLE} = \"{self._song_data[self.SongEntry.TITLE]}\"\n")
-            file.write(f"  {self.SongEntry.ARTIST} = \"{self._song_data[self.SongEntry.ARTIST]}\"\n")
-            file.write(f"  {self.SongEntry.ALBUM} = \"{self._song_data[self.SongEntry.ALBUM]}\"\n")
-            file.write(f"  {self.SongEntry.CHARTER} = \"{self._song_data[self.SongEntry.CHARTER]}\"\n")
-            file.write(f"  {self.SongEntry.OFFSET} = {self._song_data[self.SongEntry.OFFSET]}\n")
+            file.write(f"  {NotesSongEntry.RESOLUTION} = {self._song_data[NotesSongEntry.RESOLUTION]}\n")
+            file.write(f"  {NotesSongEntry.TITLE} = \"{self._song_data[NotesSongEntry.TITLE]}\"\n")
+            file.write(f"  {NotesSongEntry.ARTIST} = \"{self._song_data[NotesSongEntry.ARTIST]}\"\n")
+            file.write(f"  {NotesSongEntry.ALBUM} = \"{self._song_data[NotesSongEntry.ALBUM]}\"\n")
+            file.write(f"  {NotesSongEntry.CHARTER} = \"{self._song_data[NotesSongEntry.CHARTER]}\"\n")
+            file.write(f"  {NotesSongEntry.GENRE} = \"{DefaultValues.SONG_GENRE}\"\n")
+            file.write(f"  {NotesSongEntry.MUSIC_STREAM} = \"{DefaultValues.SONG_MUSIC_STREAM}\"\n")
+            file.write(f"  {NotesSongEntry.OFFSET} = {self._song_data[NotesSongEntry.OFFSET]}\n")
+            file.write(f"  {NotesSongEntry.PLAYER2} = {DefaultValues.SONG_PLAYER2}\n")
+            file.write(f"  {NotesSongEntry.DIFFICULTY} = {DefaultValues.SONG_DIFFICULTY}\n")
+            file.write(f"  {NotesSongEntry.PREVIEW_START} = {DefaultValues.SONG_PREVIEW_START}\n")
+            file.write(f"  {NotesSongEntry.PREVIEW_END} = {DefaultValues.SONG_PREVIEW_END}\n")
+            file.write(f"  {NotesSongEntry.MEDIA_TYPE} = \"{DefaultValues.SONG_MEDIA_TYPE}\"\n")
             file.write("}\n")
 
             # SyncTrack
-            file.write(f"[{self.Header.SYNC_TRACK}]\n")
+            file.write(f"[{NotesHeader.SYNC_TRACK}]\n")
             file.write("{\n")
             for tick, point_type, data in self._sync_track_data:
                 if point_type == SyncTrackPointType.TIME_SIGNATURE:
@@ -109,14 +145,14 @@ class DrumChart:
             file.write("}\n")
 
             # Events
-            file.write(f"[{self.Header.EVENTS}]\n")
+            file.write(f"[{NotesHeader.EVENTS}]\n")
             file.write("{\n")
             for tick, event_text in self._events_data:
                 file.write(f"  {tick} = E \"{event_text}\"\n")
             file.write("}\n")
 
             # ExpertDrums
-            file.write(f"[{self.Header.EXPERT_DRUMS}]\n")
+            file.write(f"[{NotesHeader.EXPERT_DRUMS}]\n")
             file.write("{\n")
             for tick, point_type, data in self._export_drums_data:
                 if point_type == TrackPointType.NOTE:
@@ -159,12 +195,12 @@ class DrumChart:
 
         # Set the song data
         self._song_data = {
-            self.SongEntry.RESOLUTION: self._resolution,
-            self.SongEntry.TITLE:      title,
-            self.SongEntry.ARTIST:     artist,
-            self.SongEntry.ALBUM:      album,
-            self.SongEntry.CHARTER:    charter,
-            self.SongEntry.OFFSET:     int(DefaultValues.SONG_OFFSET),
+            NotesSongEntry.RESOLUTION: self._resolution,
+            NotesSongEntry.TITLE:      title,
+            NotesSongEntry.ARTIST:     artist,
+            NotesSongEntry.ALBUM:      album,
+            NotesSongEntry.CHARTER:    charter,
+            NotesSongEntry.OFFSET:     int(DefaultValues.SONG_OFFSET),
         }
 
     def _retrieve_tempo_data(self) -> None:
@@ -275,7 +311,26 @@ class DrumChart:
             midi_note_text = midi_note_element.text
             if midi_note_text is None: continue
             midi_note = int(midi_note_text)
-            self._note_data[note_id] = midi_note
+
+            # Check if it's a tied note
+            tied_note = False
+            tie_element = note_element.find(".//Tie")
+            if tie_element is not None:
+                tie_destination = tie_element.get("destination", "false")
+                if tie_destination == "true":
+                    tied_note = True
+
+            # Check if it's a ghost note
+            ghost_note = False
+            anti_accent_element = note_element.find(".//AntiAccent")
+            if anti_accent_element is not None:
+                anti_accent_text = anti_accent_element.text
+                if anti_accent_text == AntiAccent.GHOST_NOTE:
+                    ghost_note = True
+
+            # Create the note
+            note = Note(note_id, midi_note, tied_note, ghost_note)
+            self._note_data[note_id] = note
 
     def _retrieve_beat_data(self) -> None:
         beat_elements = self._root.findall(".//Beats/Beat")
@@ -302,15 +357,15 @@ class DrumChart:
                 if notes_text is not None:
                     note_ids = [int(note_str) for note_str in notes_text.split(" ")]
 
-            # Get the MIDI note values
-            midi_notes: list[int] = []
+            # Get the notes
+            notes: list[Note] = []
             for note_id in note_ids:
-                # Get the note value
-                midi_note = self._note_data.get(note_id, -1)
-                if midi_note < 0: continue
+                # Get the note
+                note = self._note_data.get(note_id, None)
+                if note is None: continue
 
-                # Append the note value to the list
-                midi_notes.append(midi_note)
+                # Append the note to the list
+                notes.append(note)
 
             # Get the grace note type
             grace_note_type = GraceNoteType.NONE
@@ -335,7 +390,7 @@ class DrumChart:
                         pass
 
             # Create the beat
-            beat = Beat(beat_id, midi_notes, rhythm, dynamic, grace_note_type)
+            beat = Beat(beat_id, notes, rhythm, dynamic, grace_note_type)
             self._beat_data[beat_id] = beat
 
     def _retrieve_voice_data(self) -> None:
@@ -638,17 +693,24 @@ class DrumChart:
                         rhythm = 1/(1/rhythm + 1/delta_rhythm)
                         delta_rhythm = None
 
-                    # TODO: skip tied notes
-
                     # Convert the midi notes to CH notes
                     ch_notes: list[CHMidiNote] = []
-                    for midi_note in beat.midi_notes:
+                    for note in beat.notes:
+                        # Skip if it's a tied note
+                        if note.tied: continue
+
                         # Convert the midi note to a GP note
-                        gp_note = GPMidiNote(midi_note)
+                        gp_note = GPMidiNote(note.midi)
 
                         # Convert the midi note to CH notes
                         midi_ch_notes = DRUMS_GP_TO_CH_MAPPING.get(gp_note, None)
                         if midi_ch_notes is None: continue
+                        midi_ch_notes = midi_ch_notes.copy()
+
+                        # Handle ghost notes
+                        if note.ghost:
+                            # Decrease the intensity
+                            self._decrease_ch_notes_intensity(midi_ch_notes)
 
                         # Handle the beat dynamic
                         if beat.dynamic < default_dynamic:
@@ -657,8 +719,6 @@ class DrumChart:
                         elif beat.dynamic > default_dynamic:
                             # Increase the intensity
                             self._increase_ch_notes_intensity(midi_ch_notes)
-
-                        # TODO: ghost notes
 
                         # Add the notes to the list
                         ch_notes.extend(midi_ch_notes)
