@@ -19,14 +19,24 @@ GP_RHYTHM_DICT = {
     "64th":    64
 }
 
+# Chart constants
+COUNTDOWN_TIME = 2  # seconds
+
 # Output filenames
 INI_FILENAME = "song.ini"
 SONG_FILENAME = "song.ogg"
 NOTES_FILENAME = "notes.chart"
 
+# Temporary directories
+TMP_DIR = Path("tmp")
+TMP_GP_DIR = TMP_DIR / "gp"
+TMP_OUT_DIR = TMP_DIR / "out"
+
+
 # .chart file data
 class DefaultValues:
     INI_DIFFICULTY     = -1
+    SONG_BPM           = 120  # beats/min
     SONG_RESOLUTION    = 480  # ticks
     SONG_GENRE         = "rock"
     SONG_MUSIC_STREAM  = SONG_FILENAME
@@ -36,8 +46,6 @@ class DefaultValues:
     SONG_PREVIEW_START = 0    # ticks(?)
     SONG_PREVIEW_END   = 0    # ticks(?)
     SONG_MEDIA_TYPE    = "cd"
-    # TODO: add countdown time
-    COUNTDOWN_TIME     = 3    # seconds
 
 class SyncTrackPointType(StrEnum):
     BPM            = "B"
@@ -48,11 +56,7 @@ class TrackPointType(StrEnum):
     STAR_POWER = "S"
     EVENT      = "E"
 
+
 type SongData = dict[str, Any]
 type SyncTrackPoint = tuple[int, SyncTrackPointType, Any]
 type TrackPoint = tuple[int, TrackPointType, Any]
-
-# Temporary directories
-TMP_DIR = Path("tmp")
-TMP_GP_DIR = TMP_DIR / "gp"
-TMP_OUT_DIR = TMP_DIR / "out"

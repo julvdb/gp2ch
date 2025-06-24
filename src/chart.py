@@ -9,6 +9,7 @@ from .const import (
     GP_INVALID_VOICE,
     GP_RHYTHM_DICT,
     GP_DEFAULT_DYNAMIC,
+    COUNTDOWN_TIME,
     DefaultValues,
     SongData,
     SyncTrackPointType, SyncTrackPoint,
@@ -58,6 +59,11 @@ class NotesSongEntry(StrEnum):
 class DrumChart:
     def __init__(self, root: ET.Element) -> None:
         self._root = root
+
+        # Calculate the starting tick (after the countdown silence)
+        res = DefaultValues.SONG_RESOLUTION
+        bpm = DefaultValues.SONG_BPM
+        self.start_tick = (res * bpm/60) * COUNTDOWN_TIME
 
         # Guitar Pro data
         self._tempo_data: list[tuple[float,float]] = []                 # (master bar position, bpm)
@@ -545,11 +551,11 @@ class DrumChart:
                 ch_notes.append(accent)
 
     def _create_sync_track_data(self) -> None:
-        tick = 0.
+        tick = self.start_tick
         ts_idx = 0
         ts_numer, ts_denom = -1, -1
         tempo_idx = 0
-        bpm = self._tempo_data[tempo_idx][1]  # there is always a tempo at 0
+        bpm = DefaultValues.SONG_BPM
         for master_bar in range(self._num_master_bars):
             # Save the starting tick of the master bar
             self._master_bar_start_ticks.append(tick)
@@ -651,7 +657,7 @@ class DrumChart:
         # Amount to change the current note duration by
         delta_rhythm: float | None = None
 
-        tick = 0.
+        tick = self.start_tick
         ts_idx = 0
         _, ts_numer, ts_denom = self._time_signature_data[ts_idx]
         tempo_idx = 0

@@ -8,7 +8,8 @@ from pydub import AudioSegment
 from .const import (
     TMP_GP_DIR, TMP_OUT_DIR,
     GPIF_PATH,
-    INI_FILENAME, SONG_FILENAME, NOTES_FILENAME
+    INI_FILENAME, SONG_FILENAME, NOTES_FILENAME,
+    COUNTDOWN_TIME
 )
 from .chart import DrumChart
 
@@ -42,7 +43,9 @@ def convert_audio_to_ogg(root: ET.Element) -> None:
         return
 
     # Load the audio file
-    audio = AudioSegment.from_file(audio_path)
+    audio = AudioSegment.from_file(audio_path)  # type: AudioSegment
+    countdown_silence = AudioSegment.silent(duration=COUNTDOWN_TIME * 1000)
+    audio = countdown_silence + audio
 
     # Export the audio file to OGG format
     TMP_OUT_DIR.mkdir(parents=True, exist_ok=True)
