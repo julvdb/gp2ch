@@ -21,11 +21,13 @@ GP_RHYTHM_DICT = {
 
 # Chart constants
 COUNTDOWN_TIME = 2  # seconds
+ALBUM_SIZE = (512, 512)
 
 # Output filenames
 INI_FILENAME = "song.ini"
-AUDIO_FILENAME = "song.ogg"
 NOTES_FILENAME = "notes.chart"
+ALBUM_FILENAME = "album.png"
+AUDIO_FILENAME = "song.ogg"
 
 # Temporary directories
 TMP_DIR = Path("tmp")
@@ -47,6 +49,7 @@ class DefaultValues:
     SONG_PREVIEW_START = 0    # ticks(?)
     SONG_PREVIEW_END   = 0    # ticks(?)
     SONG_MEDIA_TYPE    = "cd"
+    OUTPUT_DIR         = "out"
 
 class SyncTrackPointType(StrEnum):
     BPM            = "B"

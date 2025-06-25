@@ -3,8 +3,9 @@ from typing import Optional
 from enum import StrEnum
 from pathlib import Path
 import xml.etree.ElementTree as ET
-
 from math import log2
+
+from PIL import Image
 
 from .const import (
     GP_DRUM_KIT_TYPE,
@@ -12,6 +13,7 @@ from .const import (
     GP_RHYTHM_DICT,
     GP_DEFAULT_DYNAMIC,
     COUNTDOWN_TIME,
+    ALBUM_SIZE,
     DefaultValues,
     SongData,
     SyncTrackPointType, SyncTrackPoint,
@@ -199,6 +201,14 @@ class DrumChart:
 
         # Convert the audio to OGG
         export_audio_to_ogg(audio_file, filepath)
+
+    def write_album_image_file(self,
+        filepath: Path,
+        image_file: Path
+    ) -> None:
+        image = Image.open(image_file)
+        image = image.resize(ALBUM_SIZE)
+        image.save(filepath, format="png")
 
 
     def _retrieve_song_data(self) -> None:

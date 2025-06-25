@@ -1,6 +1,7 @@
 from typing import Optional
 
 import argparse
+import shutil
 from pathlib import Path
 from zipfile import ZipFile
 import xml.etree.ElementTree as ET
@@ -8,7 +9,9 @@ import xml.etree.ElementTree as ET
 from .const import (
     TMP_GP_DIR, TMP_OUT_DIR,
     GPIF_PATH,
-    INI_FILENAME, AUDIO_FILENAME, NOTES_FILENAME,
+    INI_FILENAME, NOTES_FILENAME,
+    AUDIO_FILENAME, ALBUM_FILENAME,
+    DefaultValues
 )
 from .chart import DrumChart
 
@@ -29,7 +32,7 @@ def extract_gp(gp_file: Path) -> None:
         zip_file.extractall(TMP_GP_DIR)
 
 
-def convert_gpif_to_ch_chart(gpif_file: Path, audio_file: Optional[Path]=None) -> DrumChart:
+def convert_gpif_to_ch_chart(gpif_file: Path) -> DrumChart:
     if not gpif_file.exists():
         raise FileNotFoundError(f"Error: {gpif_file} was not found.")
 
@@ -51,6 +54,21 @@ def main() -> None:
         help="Path to the Guitar Pro (.gp) file."
     )
     parser.add_argument(
+        "-o",
+        "--output",
+        type=str,
+        required=False,
+        default=str(DefaultValues.OUTPUT_DIR),
+        help="Path to the folder in which the output folder will be created."
+    )
+    parser.add_argument(
+        "-m",
+        "--image",
+        type=str,
+        required=False,
+        help="Path to the album cover image file."
+    )
+    parser.add_argument(
         "-a",
         "--audio",
         type=str,
@@ -58,7 +76,7 @@ def main() -> None:
         help="Path to the audio file."
     )
     parser.add_argument(
-        "-nd",
+        "-n",
         "--no-drums",
         type=int,
         default=0,
@@ -70,6 +88,8 @@ def main() -> None:
 
     # Parse the argments
     gp_file = Path(args.input)
+    output_path = Path(args.output) if args.output else DefaultValues.OUTPUT_DIR
+    image_file = Path(args.image) if args.image else None
     audio_file = Path(args.audio) if args.audio else None
     no_drums = args.no_drums != 0
 
@@ -78,13 +98,25 @@ def main() -> None:
 
     # Convert the GPIF file inside the GP archive to a CH chart
     gpif_file = TMP_GP_DIR / GPIF_PATH
-    chart = convert_gpif_to_ch_chart(gpif_file, audio_file=audio_file)
+    chart = convert_gpif_to_ch_chart(gpif_file)
 
     # Create the CH output
     TMP_OUT_DIR.mkdir(parents=True, exist_ok=True)
     chart.write_ini_file(TMP_OUT_DIR / INI_FILENAME)
     chart.write_notes_chart_file(TMP_OUT_DIR / NOTES_FILENAME)
-    chart.write_audio_file(TMP_OUT_DIR / AUDIO_FILENAME, no_drums=no_drums)
+    chart.write_audio_file(
+        TMP_OUT_DIR / AUDIO_FILENAME,
+        audio_file=audio_file,
+        no_drums=no_drums
+    )
+    if image_file is not None:
+        chart.write_album_image_file(
+            TMP_OUT_DIR / ALBUM_FILENAME,
+            image_file
+        )
+
+    # Copy the output folder to the cwd
+    shutil.move(TMP_OUT_DIR, output_path)
 
 
 if __name__ == "__main__":
