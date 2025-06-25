@@ -1,3 +1,5 @@
+from typing import Optional
+
 from enum import StrEnum
 from pathlib import Path
 import xml.etree.ElementTree as ET
@@ -20,6 +22,11 @@ from .mapping import (
     GPMidiNote, CHMidiNote,
     CH_NOTE_TO_ACCENT, CH_NOTE_TO_GHOST,
     DRUMS_GP_TO_CH_MAPPING
+)
+from .audio import (
+    extract_audio_filepath_from_gpif,
+    create_drumless_track,
+    export_audio_to_ogg
 )
 
 
@@ -169,6 +176,29 @@ class DrumChart:
                 elif point_type == TrackPointType.EVENT:
                     file.write(f"  {tick} = {point_type} [{data}]\n")
             file.write("}\n")
+
+    def write_audio_file(self,
+        filepath: Path,
+        audio_file: Optional[Path] = None,
+        no_drums: bool = False
+    ) -> None:
+        # If no (valid) audio file is provided,
+        # try to extract an audio track from the GP archive
+        if audio_file is None or not audio_file.exists() or not audio_file.is_file():
+            audio_file = extract_audio_filepath_from_gpif(self._root)
+            if audio_file is None or not audio_file.exists() or not audio_file.is_file():
+                raise FileNotFoundError(
+                    f"Error: "
+                    f"No audio file found in the Guitar Pro file "
+                    f"and no valid audio file specified."
+                )
+
+        # Create a drumless track if requested
+        if no_drums:
+            audio_file = create_drumless_track(audio_file)
+
+        # Convert the audio to OGG
+        export_audio_to_ogg(audio_file, filepath)
 
 
     def _retrieve_song_data(self) -> None:

@@ -1,0 +1,3 @@
+[submodule "external/demucs"]
+	path = external/demucs
+	url = https://github.com/adefossez/demucs.git

@@ -1,2 +1,4 @@
-audioop-lts
+./external/demucs
+numpy==1.26.4
 pydub
+PySoundFile

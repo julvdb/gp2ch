@@ -24,12 +24,13 @@ COUNTDOWN_TIME = 2  # seconds
 
 # Output filenames
 INI_FILENAME = "song.ini"
-SONG_FILENAME = "song.ogg"
+AUDIO_FILENAME = "song.ogg"
 NOTES_FILENAME = "notes.chart"
 
 # Temporary directories
 TMP_DIR = Path("tmp")
 TMP_GP_DIR = TMP_DIR / "gp"
+TMP_AUDIO_DIR = TMP_DIR / "audio"
 TMP_OUT_DIR = TMP_DIR / "out"
 
 
@@ -39,7 +40,7 @@ class DefaultValues:
     SONG_BPM           = 120  # beats/min
     SONG_RESOLUTION    = 480  # ticks
     SONG_GENRE         = "rock"
-    SONG_MUSIC_STREAM  = SONG_FILENAME
+    SONG_MUSIC_STREAM  = AUDIO_FILENAME
     SONG_OFFSET        = 0    # seconds
     SONG_PLAYER2       = "bass"
     SONG_DIFFICULTY    = 0
@@ -57,6 +58,6 @@ class TrackPointType(StrEnum):
     EVENT      = "E"
 
 
-type SongData = dict[str, Any]
-type SyncTrackPoint = tuple[int, SyncTrackPointType, Any]
-type TrackPoint = tuple[int, TrackPointType, Any]
+SongData = dict[str, Any]
+SyncTrackPoint = tuple[int, SyncTrackPointType, Any]
+TrackPoint = tuple[int, TrackPointType, Any]
