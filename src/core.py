@@ -7,7 +7,7 @@ from zipfile import ZipFile
 import xml.etree.ElementTree as ET
 
 from .const import (
-    TMP_GP_DIR, TMP_OUT_DIR,
+    TMP_DIR, TMP_GP_DIR, TMP_OUT_DIR,
     GPIF_PATH,
     INI_FILENAME, NOTES_FILENAME,
     AUDIO_FILENAME, ALBUM_FILENAME,
@@ -101,7 +101,10 @@ def main() -> None:
     chart = convert_gpif_to_ch_chart(gpif_file)
 
     # Create the CH output
-    TMP_OUT_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        TMP_OUT_DIR.mkdir(parents=True, exist_ok=False)
+    except OSError:
+        raise OSError("A 'tmp' folder already exists, please delete it and try again.")
     chart.write_ini_file(TMP_OUT_DIR / INI_FILENAME)
     chart.write_notes_chart_file(TMP_OUT_DIR / NOTES_FILENAME)
     chart.write_audio_file(
@@ -117,6 +120,9 @@ def main() -> None:
 
     # Copy the output folder to the cwd
     shutil.move(TMP_OUT_DIR, output_path)
+
+    # Remove the tmp dir
+    shutil.rmtree(TMP_DIR)
 
 
 if __name__ == "__main__":
