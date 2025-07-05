@@ -78,8 +78,8 @@ def main() -> None:
     parser.add_argument(
         "-n",
         "--no-drums",
-        type=int,
-        default=0,
+        default=False,
+        action="store_true",
         required=False,
         help="If not 0, split the drums from the audio using demucs"
              " and add the drumless track to the output chart."
@@ -88,10 +88,14 @@ def main() -> None:
 
     # Parse the argments
     gp_file = Path(args.input)
-    output_path = Path(args.output) if args.output else DefaultValues.OUTPUT_DIR
+    output_path = Path(args.output) if args.output else Path(DefaultValues.OUTPUT_DIR)
     image_file = Path(args.image) if args.image else None
     audio_file = Path(args.audio) if args.audio else None
-    no_drums = args.no_drums != 0
+    no_drums = args.no_drums
+
+    # Raise an error if the output path already exists
+    if output_path.exists():
+        raise FileExistsError("The output folder already exists. Please rename or remove it.")
 
     # Extract the GP file to a temporary folder
     extract_gp(gp_file)
@@ -119,7 +123,7 @@ def main() -> None:
         )
 
     # Copy the output folder to the cwd
-    shutil.move(TMP_OUT_DIR, output_path)
+    shutil.move(TMP_OUT_DIR, output_path.parent)
 
     # Remove the tmp dir
     shutil.rmtree(TMP_DIR)
