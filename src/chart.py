@@ -342,6 +342,21 @@ class DrumChart:
                 except ValueError:
                     pass
 
+            # Handle dotted notes
+            dot_element = rhythm_element.find(".//AugmentationDot")
+            if dot_element is not None:
+                dot_count_text = dot_element.get("count", "0")
+                try:
+                    dot_count = int(dot_count_text)
+
+                    # Adjust the rhythm value
+                    factor = 1.0
+                    for i in range(dot_count):
+                        factor += 1/(i+2)
+                    rhythm_value /= factor
+                except ValueError:
+                    pass
+
             self._rhythm_data[rhythm_id] = rhythm_value
 
     def _retrieve_note_data(self) -> None:
