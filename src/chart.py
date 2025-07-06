@@ -19,7 +19,10 @@ from .const import (
     SyncTrackPointType, SyncTrackPoint,
     TrackPointType, TrackPoint,
 )
-from .gp import AntiAccent, Note, GraceNoteType, Dynamic, Beat
+from .gp import (
+    Accent, AntiAccent, GraceNoteType, Note,
+    Dynamic, Beat
+)
 from .mapping import (
     GPMidiNote, CHMidiNote,
     CH_NOTE_TO_ACCENT, CH_NOTE_TO_GHOST,
@@ -381,16 +384,31 @@ class DrumChart:
                 if tie_destination == "true":
                     tied_note = True
 
-            # Check if it's a ghost note
-            ghost_note = False
+            # Parse the accent
+            accent = Accent.NONE
+            accent_element = note_element.find(".//Accent")
+            if accent_element is not None:
+                accent_text = accent_element.text
+                if accent_text is not None:
+                    try:
+                        accent_int = int(accent_text)
+                        accent = Accent(accent_int)
+                    except ValueError:
+                        raise
+
+            # Parse the anti-accent
+            anti_accent = AntiAccent.NONE
             anti_accent_element = note_element.find(".//AntiAccent")
             if anti_accent_element is not None:
                 anti_accent_text = anti_accent_element.text
-                if anti_accent_text == AntiAccent.GHOST_NOTE:
-                    ghost_note = True
+                if anti_accent_text is not None:
+                    try:
+                        anti_accent = AntiAccent(anti_accent_text)
+                    except ValueError:
+                        raise
 
             # Create the note
-            note = Note(note_id, midi_note, tied_note, ghost_note)
+            note = Note(note_id, midi_note, tied_note, accent, anti_accent)
             self._note_data[note_id] = note
 
     def _retrieve_beat_data(self) -> None:
@@ -768,10 +786,23 @@ class DrumChart:
                         if midi_ch_notes is None: continue
                         midi_ch_notes = midi_ch_notes.copy()
 
-                        # Handle ghost notes
-                        if note.ghost:
-                            # Decrease the intensity
-                            self._decrease_ch_notes_intensity(midi_ch_notes)
+                        # Handle anti-accents
+                        match note.anti_accent:
+                            case AntiAccent.GHOST_NOTE:
+                                self._decrease_ch_notes_intensity(midi_ch_notes)
+
+                        # Handle accents
+                        match note.accent:
+                            case Accent.ACCENT:
+                                self._increase_ch_notes_intensity(midi_ch_notes)
+                            case Accent.HEAVY_ACCENT:
+                                # Max out intensity
+                                self._increase_ch_notes_intensity(midi_ch_notes)
+                                self._increase_ch_notes_intensity(midi_ch_notes)
+                            case Accent.STACCATO:
+                                # Max out intensity
+                                self._increase_ch_notes_intensity(midi_ch_notes)
+                                self._increase_ch_notes_intensity(midi_ch_notes)
 
                         # Handle the beat dynamic
                         if beat.dynamic < default_dynamic:

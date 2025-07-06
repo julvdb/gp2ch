@@ -2,7 +2,14 @@ from enum import IntEnum, StrEnum, auto
 from dataclasses import dataclass
 
 
+class Accent(IntEnum):
+    NONE         = -1
+    STACCATO     =  1
+    HEAVY_ACCENT =  4
+    ACCENT       =  8
+
 class AntiAccent(StrEnum):
+    NONE       = ""
     GHOST_NOTE = "Normal"
 
 @dataclass
@@ -10,7 +17,8 @@ class Note:
     note_id: int
     midi: int
     tied: bool
-    ghost: bool
+    accent: Accent
+    anti_accent: AntiAccent
 
 
 class GraceNoteType(StrEnum):
