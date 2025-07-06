@@ -27,7 +27,11 @@ ALBUM_SIZE = (512, 512)
 INI_FILENAME = "song.ini"
 NOTES_FILENAME = "notes.chart"
 ALBUM_FILENAME = "album.png"
-AUDIO_FILENAME = "song.ogg"
+MUSIC_STREAM_FILENAME = "song.ogg"
+DRUMS_STREAM_FILENAME = "drums_1.ogg"
+BASS_STREAM_FILENAME = "bass.ogg"
+GUITAR_STREAM_FILENAME = "guitar.ogg"
+VOCALS_STREAM_FILENAME = "vocals.ogg"
 
 # Temporary directories
 TMP_DIR = Path("tmp")
@@ -42,7 +46,11 @@ class DefaultValues:
     SONG_BPM           = 120  # beats/min
     SONG_RESOLUTION    = 480  # ticks
     SONG_GENRE         = "rock"
-    SONG_MUSIC_STREAM  = AUDIO_FILENAME
+    SONG_MUSIC_STREAM  = MUSIC_STREAM_FILENAME
+    SONG_DRUMS_STREAM  = DRUMS_STREAM_FILENAME
+    SONG_BASS_STREAM   = BASS_STREAM_FILENAME
+    SONG_GUITAR_STREAM = GUITAR_STREAM_FILENAME
+    SONG_VOCALS_STREAM = VOCALS_STREAM_FILENAME
     SONG_OFFSET        = 0    # seconds
     SONG_PLAYER2       = "bass"
     SONG_DIFFICULTY    = 0

@@ -29,8 +29,9 @@ from .mapping import (
     DRUMS_GP_TO_CH_MAPPING
 )
 from .audio import (
+    AudioStem,
     extract_audio_filepath_from_gpif,
-    create_drumless_track,
+    split_audio_track,
     export_audio_to_ogg
 )
 
@@ -60,6 +61,10 @@ class NotesSongEntry(StrEnum):
     CHARTER       = "Charter"
     GENRE         = "Genre"
     MUSIC_STREAM  = "MusicStream"
+    DRUM_STREAM   = "DrumStream"
+    BASS_STREAM   = "BassStream"
+    GUITAR_STREAM = "GuitarStream"
+    VOCAL_STREAM  = "VocalStream"
     OFFSET        = "Offset"
     PLAYER2       = "Player2"
     DIFFICULTY    = "Difficulty"
@@ -69,8 +74,9 @@ class NotesSongEntry(StrEnum):
 
 
 class DrumChart:
-    def __init__(self, root: ET.Element) -> None:
+    def __init__(self, root: ET.Element, split: bool = False) -> None:
         self._root = root
+        self._split = split
 
         # Calculate the starting tick (after the countdown silence)
         res = DefaultValues.SONG_RESOLUTION
@@ -143,7 +149,13 @@ class DrumChart:
             file.write(f"  {NotesSongEntry.ALBUM} = \"{self._song_data[NotesSongEntry.ALBUM]}\"\n")
             file.write(f"  {NotesSongEntry.CHARTER} = \"{self._song_data[NotesSongEntry.CHARTER]}\"\n")
             file.write(f"  {NotesSongEntry.GENRE} = \"{DefaultValues.SONG_GENRE}\"\n")
-            file.write(f"  {NotesSongEntry.MUSIC_STREAM} = \"{DefaultValues.SONG_MUSIC_STREAM}\"\n")
+            if self._split:
+                file.write(f"  {NotesSongEntry.DRUM_STREAM} = \"{DefaultValues.SONG_DRUMS_STREAM}\"\n")
+                file.write(f"  {NotesSongEntry.BASS_STREAM} = \"{DefaultValues.SONG_BASS_STREAM}\"\n")
+                file.write(f"  {NotesSongEntry.GUITAR_STREAM} = \"{DefaultValues.SONG_GUITAR_STREAM}\"\n")
+                file.write(f"  {NotesSongEntry.VOCAL_STREAM} = \"{DefaultValues.SONG_VOCALS_STREAM}\"\n")
+            else:
+                file.write(f"  {NotesSongEntry.MUSIC_STREAM} = \"{DefaultValues.SONG_MUSIC_STREAM}\"\n")
             file.write(f"  {NotesSongEntry.OFFSET} = {self._song_data[NotesSongEntry.OFFSET]}\n")
             file.write(f"  {NotesSongEntry.PLAYER2} = {DefaultValues.SONG_PLAYER2}\n")
             file.write(f"  {NotesSongEntry.DIFFICULTY} = {DefaultValues.SONG_DIFFICULTY}\n")
@@ -182,28 +194,38 @@ class DrumChart:
                     file.write(f"  {tick} = {point_type} [{data}]\n")
             file.write("}\n")
 
-    def write_audio_file(self,
-        filepath: Path,
-        audio_file: Optional[Path] = None,
-        no_drums: bool = False
-    ) -> None:
+    def write_audio_files(self, folder: Path, audio_file: Optional[Path] = None) -> None:
         # If no (valid) audio file is provided,
         # try to extract an audio track from the GP archive
         if audio_file is None or not audio_file.exists() or not audio_file.is_file():
             audio_file = extract_audio_filepath_from_gpif(self._root)
             if audio_file is None or not audio_file.exists() or not audio_file.is_file():
                 raise FileNotFoundError(
-                    f"Error: "
-                    f"No audio file found in the Guitar Pro file "
-                    f"and no valid audio file specified."
+                    "Error: "
+                    "No audio file found in the Guitar Pro file "
+                    "and no valid audio file specified."
                 )
 
-        # Create a drumless track if requested
-        if no_drums:
-            audio_file = create_drumless_track(audio_file)
+        # Split the track if requested
+        # and convert the audio tracks to OGG files
+        if self._split:
+            stem_files = split_audio_track(audio_file)
+            for stem in stem_files:
+                stem_file = stem_files[stem]
+                match stem:
+                    case AudioStem.DRUMS:
+                        filename = folder / DefaultValues.SONG_DRUMS_STREAM
+                    case AudioStem.BASS:
+                        filename = folder / DefaultValues.SONG_BASS_STREAM
+                    case AudioStem.OTHER:
+                        filename = folder / DefaultValues.SONG_GUITAR_STREAM
+                    case AudioStem.VOCALS:
+                        filename = folder / DefaultValues.SONG_VOCALS_STREAM
+                export_audio_to_ogg(stem_file, filename)
+        else:
+            filename = folder / DefaultValues.SONG_MUSIC_STREAM
+            export_audio_to_ogg(audio_file, filename)
 
-        # Convert the audio to OGG
-        export_audio_to_ogg(audio_file, filepath)
 
     def write_album_image_file(self,
         filepath: Path,

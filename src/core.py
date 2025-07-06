@@ -10,7 +10,7 @@ from .const import (
     TMP_DIR, TMP_GP_DIR, TMP_OUT_DIR,
     GPIF_PATH,
     INI_FILENAME, NOTES_FILENAME,
-    AUDIO_FILENAME, ALBUM_FILENAME,
+    MUSIC_STREAM_FILENAME, ALBUM_FILENAME,
     DefaultValues
 )
 from .chart import DrumChart
@@ -32,7 +32,7 @@ def extract_gp(gp_file: Path) -> None:
         zip_file.extractall(TMP_GP_DIR)
 
 
-def convert_gpif_to_ch_chart(gpif_file: Path) -> DrumChart:
+def convert_gpif_to_ch_chart(gpif_file: Path, split: bool=False) -> DrumChart:
     if not gpif_file.exists():
         raise FileNotFoundError(f"Error: {gpif_file} was not found.")
 
@@ -41,7 +41,7 @@ def convert_gpif_to_ch_chart(gpif_file: Path) -> DrumChart:
     root = tree.getroot()
 
     # Create the chart
-    return DrumChart(root)
+    return DrumChart(root, split=split)
 
 
 def main() -> None:
@@ -76,13 +76,12 @@ def main() -> None:
         help="Path to the audio file."
     )
     parser.add_argument(
-        "-n",
-        "--no-drums",
+        "-s",
+        "--split",
         default=False,
         action="store_true",
         required=False,
-        help="If not 0, split the drums from the audio using demucs"
-             " and add the drumless track to the output chart."
+        help="If specified, split the audio into four stems using demucs."
     )
     args = parser.parse_args()
 
@@ -91,7 +90,7 @@ def main() -> None:
     output_path = Path(args.output) if args.output else Path(DefaultValues.OUTPUT_DIR)
     image_file = Path(args.image) if args.image else None
     audio_file = Path(args.audio) if args.audio else None
-    no_drums = args.no_drums
+    split = bool(args.split)
 
     # Raise an error if the output path already exists
     if output_path.exists():
@@ -102,7 +101,7 @@ def main() -> None:
 
     # Convert the GPIF file inside the GP archive to a CH chart
     gpif_file = TMP_GP_DIR / GPIF_PATH
-    chart = convert_gpif_to_ch_chart(gpif_file)
+    chart = convert_gpif_to_ch_chart(gpif_file, split=split)
 
     # Create the CH output
     try:
@@ -111,11 +110,7 @@ def main() -> None:
         raise OSError("A 'tmp' folder already exists, please delete it and try again.")
     chart.write_ini_file(TMP_OUT_DIR / INI_FILENAME)
     chart.write_notes_chart_file(TMP_OUT_DIR / NOTES_FILENAME)
-    chart.write_audio_file(
-        TMP_OUT_DIR / AUDIO_FILENAME,
-        audio_file=audio_file,
-        no_drums=no_drums
-    )
+    chart.write_audio_files(TMP_OUT_DIR, audio_file=audio_file)
     if image_file is not None:
         chart.write_album_image_file(
             TMP_OUT_DIR / ALBUM_FILENAME,

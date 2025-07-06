@@ -1,13 +1,21 @@
 from pathlib import Path
+from enum import StrEnum
 import xml.etree.ElementTree as ET
 import multiprocessing
 
+from torch import Tensor
 from pydub import AudioSegment
-import torchaudio as ta
 import demucs.api
 import demucs.audio
 
 from .const import TMP_GP_DIR, TMP_AUDIO_DIR, COUNTDOWN_TIME
+
+
+class AudioStem(StrEnum):
+    DRUMS  = "drums"
+    BASS   = "bass"
+    OTHER  = "other"
+    VOCALS = "vocals"
 
 
 def extract_audio_filepath_from_gpif(root: ET.Element) -> Path | None:
@@ -24,7 +32,7 @@ def extract_audio_filepath_from_gpif(root: ET.Element) -> Path | None:
     return audio_path
 
 
-def create_drumless_track(audio_file: Path) -> Path:
+def split_audio_track(audio_file: Path) -> dict[AudioStem,Path]:
     # Separate the stems
     ncores = multiprocessing.cpu_count() - 1
     separator = demucs.api.Separator(
@@ -34,15 +42,16 @@ def create_drumless_track(audio_file: Path) -> Path:
     )
     _, separated = separator.separate_audio_file(audio_file)
 
-    # Remix the other stems, without the drums
-    drumless_audio = separated["bass"] + separated["other"] + separated["vocals"]
-
-    # Create the drumless file in the tmp folder
+    # Create temporary audio files for each stem
+    filenames: dict[AudioStem,Path] = {}
     TMP_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
-    out_file = TMP_AUDIO_DIR / "drumless.wav"
-    demucs.audio.save_audio(drumless_audio, out_file, separator.samplerate)
+    for stem in AudioStem:
+        stem_audio = separated[stem]
+        stem_file  = TMP_AUDIO_DIR / f"{stem}.wav"
+        demucs.audio.save_audio(stem_audio, stem_file,  separator.samplerate)
+        filenames[stem] = stem_file
 
-    return out_file
+    return filenames
 
 
 def export_audio_to_ogg(filepath: Path, out_filepath: Path) -> None:
