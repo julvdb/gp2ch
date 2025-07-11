@@ -373,7 +373,7 @@ class DrumChart:
                     # Adjust the rhythm value
                     factor = 1.0
                     for i in range(dot_count):
-                        factor += 1/(i+2)
+                        factor += 1 / 2**(i+1)
                     rhythm_value /= factor
                 except ValueError:
                     pass

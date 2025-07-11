@@ -62,6 +62,7 @@ def main() -> None:
     parser.add_argument(
         "-m",
         "--image",
+        "--album",
         type=str,
         required=False,
         help="Path to the album cover image file."
