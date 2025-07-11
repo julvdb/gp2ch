@@ -3,7 +3,6 @@ from enum import StrEnum
 import xml.etree.ElementTree as ET
 import multiprocessing
 
-from torch import Tensor
 from pydub import AudioSegment
 import demucs.api
 import demucs.audio
@@ -56,9 +55,9 @@ def split_audio_track(audio_file: Path) -> dict[AudioStem,Path]:
 
 def export_audio_to_ogg(filepath: Path, out_filepath: Path) -> None:
     # Load the audio file and add silence
-    audio = AudioSegment.from_file(filepath)  # type: AudioSegment
+    audio: AudioSegment = AudioSegment.from_file(filepath)
     countdown_silence = AudioSegment.silent(duration=COUNTDOWN_TIME * 1000)
-    audio = countdown_silence + audio
+    audio: AudioSegment = countdown_silence + audio
 
     # Export the audio file to OGG format
     out_filepath.parent.mkdir(parents=True, exist_ok=True)

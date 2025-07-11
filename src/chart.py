@@ -1,5 +1,3 @@
-from typing import Optional
-
 from enum import StrEnum
 from pathlib import Path
 import xml.etree.ElementTree as ET
@@ -194,16 +192,14 @@ class DrumChart:
                     file.write(f"  {tick} = {point_type} [{data}]\n")
             file.write("}\n")
 
-    def write_audio_files(self, folder: Path, audio_file: Optional[Path] = None) -> None:
+    def write_audio_files(self, folder: Path, audio_file: Path | None = None) -> None:
         # If no (valid) audio file is provided,
         # try to extract an audio track from the GP archive
         if audio_file is None or not audio_file.exists() or not audio_file.is_file():
             audio_file = extract_audio_filepath_from_gpif(self._root)
             if audio_file is None or not audio_file.exists() or not audio_file.is_file():
                 raise FileNotFoundError(
-                    "Error: "
-                    "No audio file found in the Guitar Pro file "
-                    "and no valid audio file specified."
+                    "Error: No audio file found in the Guitar Pro file and no valid audio file specified."
                 )
 
         # Split the track if requested
@@ -503,7 +499,7 @@ class DrumChart:
 
             # Get the beat ids
             beats_element = voice_element.findall(".//Beats")
-            if beats_element is None: continue
+            if not beats_element: continue
             beat_ids_text = beats_element[0].text
             if beat_ids_text is None: continue
             beat_ids = [int(beat_str) for beat_str in beat_ids_text.split(" ")]
@@ -812,6 +808,8 @@ class DrumChart:
                         match note.anti_accent:
                             case AntiAccent.GHOST_NOTE:
                                 self._decrease_ch_notes_intensity(midi_ch_notes)
+                            case _:
+                                pass
 
                         # Handle accents
                         match note.accent:
@@ -825,6 +823,8 @@ class DrumChart:
                                 # Max out intensity
                                 self._increase_ch_notes_intensity(midi_ch_notes)
                                 self._increase_ch_notes_intensity(midi_ch_notes)
+                            case _:
+                                pass
 
                         # Handle the beat dynamic
                         if beat.dynamic < default_dynamic:

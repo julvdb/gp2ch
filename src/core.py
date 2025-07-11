@@ -1,5 +1,3 @@
-from typing import Optional
-
 import argparse
 import shutil
 from pathlib import Path
@@ -10,7 +8,7 @@ from .const import (
     TMP_DIR, TMP_GP_DIR, TMP_OUT_DIR,
     GPIF_PATH,
     INI_FILENAME, NOTES_FILENAME,
-    MUSIC_STREAM_FILENAME, ALBUM_FILENAME,
+    ALBUM_FILENAME,
     DefaultValues
 )
 from .chart import DrumChart

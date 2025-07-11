@@ -1,3 +1,5 @@
+from typing_extensions import override
+
 from enum import IntEnum, StrEnum, auto
 from dataclasses import dataclass
 
@@ -36,6 +38,7 @@ class Dynamic(IntEnum):
     FF  = auto()
     FFF = auto()
 
+    @override
     def __str__(self) -> str:
         return self.name
 
