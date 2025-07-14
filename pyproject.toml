@@ -8,6 +8,7 @@ dependencies = [
     "demucs",
     "numpy==1.26.4",
     "pillow>=11.3.0",
+    "pydub>=0.25.1",
     "pysoundfile>=0.9.0.post1",
 ]
 
