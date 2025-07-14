@@ -1,5 +1,0 @@
-./external/demucs
-numpy==1.26.4
-pillow
-pydub
-PySoundFile
