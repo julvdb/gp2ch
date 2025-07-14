@@ -2,6 +2,10 @@ from typing_extensions import override
 
 from enum import IntEnum, StrEnum, auto
 from dataclasses import dataclass
+from pathlib import Path
+from zipfile import ZipFile
+
+from .const import TMP_GP_DIR
 
 
 class Accent(IntEnum):
@@ -49,3 +53,19 @@ class Beat:
     rhythm: float
     dynamic: Dynamic
     grace_note_type: GraceNoteType
+
+
+def extract_gp(gp_file: Path) -> None:
+    # Check if the file is valid
+    if not gp_file.exists():
+        raise FileNotFoundError(f"Error: {gp_file} does not exist.")
+    # Check if it is a file
+    if not gp_file.is_file():
+        raise FileNotFoundError(f"Error: {gp_file} is not a file.")
+    # Check if it is a .gp file
+    if gp_file.suffix != ".gp":
+        raise ValueError(f"Error: {gp_file} is not a .gp file.")
+
+    # Extract the .gp file
+    with ZipFile(gp_file, 'r') as zip_file:
+        zip_file.extractall(TMP_GP_DIR)

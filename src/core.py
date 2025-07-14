@@ -1,7 +1,6 @@
 import argparse
 import shutil
 from pathlib import Path
-from zipfile import ZipFile
 import xml.etree.ElementTree as ET
 
 from .const import (
@@ -11,23 +10,8 @@ from .const import (
     ALBUM_FILENAME,
     DefaultValues
 )
+from .gp import extract_gp
 from .chart import DrumChart
-
-
-def extract_gp(gp_file: Path) -> None:
-    # Check if the file is valid
-    if not gp_file.exists():
-        raise FileNotFoundError(f"Error: {gp_file} does not exist.")
-    # Check if it is a file
-    if not gp_file.is_file():
-        raise FileNotFoundError(f"Error: {gp_file} is not a file.")
-    # Check if it is a .gp file
-    if gp_file.suffix != ".gp":
-        raise ValueError(f"Error: {gp_file} is not a .gp file.")
-
-    # Extract the .gp file
-    with ZipFile(gp_file, 'r') as zip_file:
-        zip_file.extractall(TMP_GP_DIR)
 
 
 def convert_gpif_to_ch_chart(gpif_file: Path, split: bool=False) -> DrumChart:
